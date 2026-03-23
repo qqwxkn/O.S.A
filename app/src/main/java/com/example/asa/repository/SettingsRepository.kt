@@ -1,0 +1,63 @@
+package com.example.asa.repository
+
+import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import com.example.asa.model.AiAssistant
+import com.example.asa.model.AppTheme
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+interface SettingsRepository {
+    val themeFlow: Flow<AppTheme>
+    val defaultAiFlow: Flow<AiAssistant>
+    val smsPhoneFlow: Flow<String>
+    suspend fun setTheme(theme: AppTheme)
+    suspend fun setDefaultAi(ai: AiAssistant)
+    suspend fun setSmsPhone(phone: String)
+}
+
+class DataStoreSettingsRepository(private val context: Context) : SettingsRepository {
+
+    companion object {
+        private val KEY_THEME = stringPreferencesKey("theme")
+        private val KEY_DEFAULT_AI = stringPreferencesKey("default_ai")
+        private val KEY_SMS_PHONE = stringPreferencesKey("sms_phone")
+
+        private const val DEFAULT_PHONE = "89155399434"
+    }
+
+    override val themeFlow: Flow<AppTheme> = context.dataStore.data.map { prefs ->
+        val value = prefs[KEY_THEME]
+        if (value != null) {
+            try { AppTheme.valueOf(value) } catch (_: IllegalArgumentException) { AppTheme.SYSTEM }
+        } else {
+            AppTheme.SYSTEM
+        }
+    }
+
+    override val defaultAiFlow: Flow<AiAssistant> = context.dataStore.data.map { prefs ->
+        val value = prefs[KEY_DEFAULT_AI]
+        if (value != null) {
+            try { AiAssistant.valueOf(value) } catch (_: IllegalArgumentException) { AiAssistant.CHATGPT }
+        } else {
+            AiAssistant.CHATGPT
+        }
+    }
+
+    override val smsPhoneFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_SMS_PHONE] ?: DEFAULT_PHONE
+    }
+
+    override suspend fun setTheme(theme: AppTheme) {
+        context.dataStore.edit { it[KEY_THEME] = theme.name }
+    }
+
+    override suspend fun setDefaultAi(ai: AiAssistant) {
+        context.dataStore.edit { it[KEY_DEFAULT_AI] = ai.name }
+    }
+
+    override suspend fun setSmsPhone(phone: String) {
+        context.dataStore.edit { it[KEY_SMS_PHONE] = phone }
+    }
+}
