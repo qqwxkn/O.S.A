@@ -13,7 +13,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import com.example.asa.model.AuthUiState
+import com.example.asa.util.normalizePhoneInput
 import com.example.asa.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
 
@@ -28,15 +31,13 @@ fun AuthScreen(
 
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    // Поля входа
-    var loginPhone by remember { mutableStateOf("") }
+    var loginPhone by remember { mutableStateOf(TextFieldValue("")) }
     var loginPassword by remember { mutableStateOf("") }
 
-    // Поля регистрации
     var regLogin by remember { mutableStateOf("") }
     var regPassword by remember { mutableStateOf("") }
     var regNickname by remember { mutableStateOf("") }
-    var regPhone by remember { mutableStateOf("") }
+    var regPhone by remember { mutableStateOf(TextFieldValue("")) }
 
     val isLoading = uiState is AuthUiState.Loading
 
@@ -56,103 +57,103 @@ fun AuthScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            contentAlignment = Alignment.Center
+                .padding(paddingValues)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text(text = "💬", fontSize = 56.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "ASA Chat",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "AI-ассистент в вашем кармане",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
-                Spacer(modifier = Modifier.height(32.dp))
+                Column(modifier = Modifier.padding(16.dp)) {
+                    TabRow(selectedTabIndex = selectedTab) {
+                        Tab(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            text = { Text("Вход") }
+                        )
+                        Tab(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            text = { Text("Регистрация") }
+                        )
+                    }
 
-                // Логотип / заголовок
-                Text(
-                    text = "💬",
-                    fontSize = 56.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "ASA Chat",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = "AI-ассистент в вашем кармане",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Карточка с формой
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        TabRow(selectedTabIndex = selectedTab) {
-                            Tab(
-                                selected = selectedTab == 0,
-                                onClick = { selectedTab = 0 },
-                                text = { Text("Вход") }
-                            )
-                            Tab(
-                                selected = selectedTab == 1,
-                                onClick = { selectedTab = 1 },
-                                text = { Text("Регистрация") }
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        if (selectedTab == 0) {
-                            LoginForm(
-                                phone = loginPhone,
-                                password = loginPassword,
-                                isLoading = isLoading,
-                                onPhoneChange = { loginPhone = it },
-                                onPasswordChange = { loginPassword = it },
-                                onLogin = { viewModel.login(loginPhone, loginPassword) }
-                            )
-                        } else {
-                            RegisterForm(
-                                login = regLogin,
-                                password = regPassword,
-                                nickname = regNickname,
-                                phone = regPhone,
-                                isLoading = isLoading,
-                                onLoginChange = { regLogin = it },
-                                onPasswordChange = { regPassword = it },
-                                onNicknameChange = { regNickname = it },
-                                onPhoneChange = { regPhone = it },
-                                onRegister = {
-                                    viewModel.register(regLogin, regPassword, regNickname, regPhone)
-                                }
-                            )
-                        }
+                    if (selectedTab == 0) {
+                        LoginForm(
+                            phone = loginPhone,
+                            password = loginPassword,
+                            isLoading = isLoading,
+                            onPhoneChange = { tfv ->
+                                val normalized = normalizePhoneInput(tfv.text)
+                                val addedPrefix = normalized.length > tfv.text.length
+                                val cursor = if (addedPrefix) normalized.length else minOf(tfv.selection.end + (normalized.length - tfv.text.length), normalized.length)
+                                loginPhone = TextFieldValue(normalized, TextRange(cursor))
+                            },
+                            onPasswordChange = { loginPassword = it },
+                            onLogin = { viewModel.login(loginPhone.text, loginPassword) }
+                        )
+                    } else {
+                        RegisterForm(
+                            login = regLogin,
+                            password = regPassword,
+                            nickname = regNickname,
+                            phone = regPhone,
+                            isLoading = isLoading,
+                            onLoginChange = { regLogin = it },
+                            onPasswordChange = { regPassword = it },
+                            onNicknameChange = { regNickname = it },
+                            onPhoneChange = { tfv ->
+                                val normalized = normalizePhoneInput(tfv.text)
+                                val addedPrefix = normalized.length > tfv.text.length
+                                val cursor = if (addedPrefix) normalized.length else minOf(tfv.selection.end + (normalized.length - tfv.text.length), normalized.length)
+                                regPhone = TextFieldValue(normalized, TextRange(cursor))
+                            },
+                            onRegister = {
+                                viewModel.register(regLogin, regPassword, regNickname, regPhone.text)
+                            }
+                        )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(32.dp))
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
 
 @Composable
 private fun LoginForm(
-    phone: String,
+    phone: TextFieldValue,
     password: String,
     isLoading: Boolean,
-    onPhoneChange: (String) -> Unit,
+    onPhoneChange: (TextFieldValue) -> Unit,
     onPasswordChange: (String) -> Unit,
     onLogin: () -> Unit
 ) {
@@ -160,7 +161,7 @@ private fun LoginForm(
         value = phone,
         onValueChange = onPhoneChange,
         label = { Text("Номер телефона") },
-        placeholder = { Text("+79001234567") },
+        placeholder = { Text("89001234567") },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
@@ -204,12 +205,12 @@ private fun RegisterForm(
     login: String,
     password: String,
     nickname: String,
-    phone: String,
+    phone: TextFieldValue,
     isLoading: Boolean,
     onLoginChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onNicknameChange: (String) -> Unit,
-    onPhoneChange: (String) -> Unit,
+    onPhoneChange: (TextFieldValue) -> Unit,
     onRegister: () -> Unit
 ) {
     OutlinedTextField(
@@ -251,7 +252,7 @@ private fun RegisterForm(
         value = phone,
         onValueChange = onPhoneChange,
         label = { Text("Номер телефона") },
-        placeholder = { Text("+79001234567") },
+        placeholder = { Text("89001234567") },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),

@@ -42,7 +42,8 @@ class AuthViewModel(
     }
 
     fun login(phone: String, password: String) {
-        val validation = validateLoginForm(phone, password)
+        val normalizedPhone = normalizePhone(phone)
+        val validation = validateLoginForm(normalizedPhone, password)
         if (validation.isFailure) {
             _uiState.value = AuthUiState.Error(validation.exceptionOrNull()?.message ?: "Ошибка валидации")
             return
@@ -50,7 +51,7 @@ class AuthViewModel(
         _uiState.value = AuthUiState.Loading
         val hash = PasswordHasher.hash(password)
         viewModelScope.launch {
-            userRepository.login(phone, hash)
+            userRepository.login(normalizedPhone, hash)
                 .onSuccess { user ->
                     sessionManager.saveUserId(user.id)
                     _uiState.value = AuthUiState.Success
@@ -63,5 +64,16 @@ class AuthViewModel(
 
     fun resetState() {
         _uiState.value = AuthUiState.Idle
+    }
+
+    // Нормализует номер к формату 8XXXXXXXXXX
+    private fun normalizePhone(phone: String): String {
+        val digits = phone.filter { it.isDigit() }
+        return when {
+            digits.startsWith("7") && digits.length == 11 -> "8" + digits.substring(1)
+            digits.startsWith("8") && digits.length == 11 -> digits
+            digits.length == 10 -> "8$digits"
+            else -> phone
+        }
     }
 }

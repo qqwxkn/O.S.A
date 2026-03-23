@@ -68,7 +68,7 @@ class SupabaseUserRepository : UserRepository {
             val user = rows.firstOrNull()
                 ?: return Result.failure(Exception("Неверный номер телефона или пароль"))
 
-            if (!PasswordHasher.verify(passwordHash, user.passwordHash)) {
+            if (passwordHash != user.passwordHash) {
                 return Result.failure(Exception("Неверный номер телефона или пароль"))
             }
 
@@ -134,15 +134,10 @@ class SupabaseUserRepository : UserRepository {
     }
 
     private fun mapRestException(e: RestException): Exception {
-        val code = e.error
+        val msg = e.message?.lowercase() ?: ""
         return when {
-            code == "23505" || e.message?.contains("23505") == true -> {
-                when {
-                    e.message?.contains("login") == true -> Exception("Логин уже занят")
-                    e.message?.contains("phone") == true -> Exception("Номер телефона уже зарегистрирован")
-                    else -> Exception("Данные уже используются другим пользователем")
-                }
-            }
+            msg.contains("23505") || msg.contains("unique") || msg.contains("duplicate") ->
+                Exception("Пользователь с таким логином или номером телефона уже зарегистрирован")
             else -> Exception("Ошибка сервера: ${e.message}", e)
         }
     }

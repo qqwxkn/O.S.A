@@ -43,7 +43,9 @@ class ChatViewModel(
 
     fun sendRequest(context: Context, smsPhone: String) {
         val inputText = _inputText.value
-        SmsLauncher.launch(context, smsPhone, inputText)
+        val ai = _selectedAi.value
+        val smsText = "[ ${ai.displayName} ]\n$inputText"
+        SmsLauncher.launch(context, smsPhone, smsText)
         viewModelScope.launch {
             userRepository.incrementRequestsCount(sessionManager.getUserId() ?: return@launch)
         }
