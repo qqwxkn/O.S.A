@@ -67,6 +67,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("com.github.yalantis:ucrop:2.2.8")
     testImplementation(libs.junit)
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.property)

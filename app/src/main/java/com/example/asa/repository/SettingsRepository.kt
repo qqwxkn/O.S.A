@@ -12,9 +12,11 @@ interface SettingsRepository {
     val themeFlow: Flow<AppTheme>
     val defaultAiFlow: Flow<AiAssistant>
     val smsPhoneFlow: Flow<String>
+    val avatarUriFlow: Flow<String?>
     suspend fun setTheme(theme: AppTheme)
     suspend fun setDefaultAi(ai: AiAssistant)
     suspend fun setSmsPhone(phone: String)
+    suspend fun setAvatarUri(uri: String)
 }
 
 class DataStoreSettingsRepository(private val context: Context) : SettingsRepository {
@@ -23,6 +25,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         private val KEY_THEME = stringPreferencesKey("theme")
         private val KEY_DEFAULT_AI = stringPreferencesKey("default_ai")
         private val KEY_SMS_PHONE = stringPreferencesKey("sms_phone")
+        private val KEY_AVATAR_URI = stringPreferencesKey("avatar_uri")
 
         private const val DEFAULT_PHONE = "89155399434"
     }
@@ -49,6 +52,10 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         prefs[KEY_SMS_PHONE] ?: DEFAULT_PHONE
     }
 
+    override val avatarUriFlow: Flow<String?> = context.dataStore.data.map { prefs ->
+        prefs[KEY_AVATAR_URI]?.takeIf { it.isNotEmpty() }
+    }
+
     override suspend fun setTheme(theme: AppTheme) {
         context.dataStore.edit { it[KEY_THEME] = theme.name }
     }
@@ -59,5 +66,9 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
 
     override suspend fun setSmsPhone(phone: String) {
         context.dataStore.edit { it[KEY_SMS_PHONE] = phone }
+    }
+
+    override suspend fun setAvatarUri(uri: String) {
+        context.dataStore.edit { it[KEY_AVATAR_URI] = uri }
     }
 }

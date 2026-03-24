@@ -99,15 +99,16 @@ class SupabaseUserRepository : UserRepository {
         vkId: String?
     ): Result<Unit> {
         return try {
-            val updates = buildMap<String, Any?> {
+            // Строим patch-объект только из непустых полей
+            val patch = buildMap<String, String> {
                 login?.let { put("login", it) }
                 nickname?.let { put("nickname", it) }
                 passwordHash?.let { put("password_hash", it) }
-                if (vkId != null) put("vk_id", vkId)
+                vkId?.let { put("vk_id", it) }
             }
-            if (updates.isEmpty()) return Result.success(Unit)
+            if (patch.isEmpty()) return Result.success(Unit)
 
-            table.update(updates) {
+            table.update(patch) {
                 filter { eq("id", id) }
             }
             Result.success(Unit)

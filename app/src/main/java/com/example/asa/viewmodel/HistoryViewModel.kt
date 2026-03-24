@@ -20,7 +20,11 @@ data class SmsMessage(
 
 class HistoryViewModel : ViewModel() {
 
-    private val _allMessages = MutableStateFlow<List<SmsMessage>>(emptyList())
+    // Кэш сообщений по номеру телефона — каждый номер хранит свои SMS
+    private val _messagesByPhone = mutableMapOf<String, List<SmsMessage>>()
+
+    // Локально добавленные (ещё не в БД) — тоже по номеру
+    private val _localByPhone = mutableMapOf<String, MutableList<SmsMessage>>()
 
     private val _messages = MutableStateFlow<List<SmsMessage>>(emptyList())
     val messages: StateFlow<List<SmsMessage>> = _messages.asStateFlow()
@@ -31,6 +35,9 @@ class HistoryViewModel : ViewModel() {
     private val _selectedAi = MutableStateFlow(AiAssistant.CHATGPT)
     val selectedAi: StateFlow<AiAssistant> = _selectedAi.asStateFlow()
 
+    // Текущий активный номер
+    private var currentPhone: String = ""
+
     fun setPermissionGranted(granted: Boolean) {
         _hasPermission.value = granted
     }
@@ -40,14 +47,19 @@ class HistoryViewModel : ViewModel() {
         applyFilter()
     }
 
-    fun loadMessages(context: Context, smsPhone: String) {
+    fun loadMessages(context: Context, smsPhone: String, clearFirst: Boolean = false) {
+        currentPhone = smsPhone
+        if (clearFirst) {
+            _messagesByPhone.remove(smsPhone)
+            _localByPhone.remove(smsPhone)
+        }
         viewModelScope.launch(Dispatchers.IO) {
             val result = mutableListOf<SmsMessage>()
             val phoneVariants = normalizePhoneVariants(smsPhone)
             val selection = phoneVariants.joinToString(" OR ") { "${Telephony.Sms.ADDRESS} = ?" }
             val selectionArgs = phoneVariants.toTypedArray()
 
-            // Входящие (ответы от AI)
+            // Входящие
             context.contentResolver.query(
                 Telephony.Sms.Inbox.CONTENT_URI,
                 arrayOf(Telephony.Sms._ID, Telephony.Sms.BODY, Telephony.Sms.DATE),
@@ -59,7 +71,7 @@ class HistoryViewModel : ViewModel() {
                 }
             }
 
-            // Исходящие (запросы пользователя)
+            // Исходящие
             context.contentResolver.query(
                 Telephony.Sms.Sent.CONTENT_URI,
                 arrayOf(Telephony.Sms._ID, Telephony.Sms.BODY, Telephony.Sms.DATE),
@@ -71,58 +83,51 @@ class HistoryViewModel : ViewModel() {
                 }
             }
 
-            // Мёрджим с локально добавленными — убираем дубли по тексту+направлению
-            val existing = _allMessages.value.filter { it.id < 0 } // локальные (id < 0)
+            val local = _localByPhone[smsPhone] ?: emptyList()
             val fromDb = result.sortedBy { it.date }
-            val merged = (existing + fromDb)
+            // Мёрджим локальные с БД, убираем дубли по тексту+направлению
+            val merged = (local + fromDb)
                 .distinctBy { "${it.isIncoming}_${it.body.take(50)}" }
                 .sortedBy { it.date }
 
-            // Переключаемся на Main для обновления StateFlow
             kotlinx.coroutines.withContext(Dispatchers.Main) {
-                _allMessages.value = merged
-                applyFilter()
+                _messagesByPhone[smsPhone] = merged
+                // Показываем только если этот номер всё ещё активен
+                if (currentPhone == smsPhone) applyFilter()
             }
         }
     }
 
-    // Вызывается сразу после отправки SMS — добавляет исходящее локально без перечитывания БД
-    fun addOutgoingMessage(body: String) {
+    // Добавляет исходящее локально — привязано к конкретному номеру
+    fun addOutgoingMessage(body: String, phone: String = currentPhone) {
         val msg = SmsMessage(
-            id = -System.currentTimeMillis(), // отрицательный id = локальное, ещё не из БД
+            id = -System.currentTimeMillis(),
             body = body,
             date = System.currentTimeMillis(),
             isIncoming = false
         )
-        _allMessages.value = (_allMessages.value + msg).sortedBy { it.date }
-        applyFilter()
+        _localByPhone.getOrPut(phone) { mutableListOf() }.add(msg)
+        val current = (_messagesByPhone[phone] ?: emptyList()) + msg
+        _messagesByPhone[phone] = current.sortedBy { it.date }
+        if (currentPhone == phone) applyFilter()
     }
 
-    // Вызывается из BroadcastReceiver при получении входящего SMS
+    // Добавляет входящее — привязано к текущему номеру
     fun addIncomingMessage(body: String, date: Long = System.currentTimeMillis()) {
-        // Принудительно в Main потоке — BroadcastReceiver может вызвать из любого потока
         viewModelScope.launch(Dispatchers.Main) {
-            val msg = SmsMessage(
-                id = date,
-                body = body,
-                date = date,
-                isIncoming = true
-            )
-            _allMessages.value = (_allMessages.value + msg).sortedBy { it.date }
-            applyFilter()
+            val phone = currentPhone
+            val msg = SmsMessage(id = date, body = body, date = date, isIncoming = true)
+            val current = (_messagesByPhone[phone] ?: emptyList()) + msg
+            _messagesByPhone[phone] = current.sortedBy { it.date }
+            if (currentPhone == phone) applyFilter()
         }
     }
 
-    // Все SMS (и входящие и исходящие) содержат префикс "[ DisplayName ]"
-    // Фильтруем по префиксу, показываем от старых к новым (запрос сверху, ответы снизу)
     private fun applyFilter() {
         val ai = _selectedAi.value
         val prefix = "[ ${ai.displayName} ]"
-        val all = _allMessages.value
-
-        _messages.value = all
-            .filter { it.body.contains(prefix) }
-            .sortedBy { it.date } // старые сверху — запрос выше ответа
+        val all = _messagesByPhone[currentPhone] ?: emptyList()
+        _messages.value = all.filter { it.body.contains(prefix) }.sortedBy { it.date }
     }
 
     private fun normalizePhoneVariants(phone: String): List<String> {

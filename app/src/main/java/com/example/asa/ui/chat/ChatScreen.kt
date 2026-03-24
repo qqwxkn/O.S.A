@@ -5,8 +5,11 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -20,7 +23,9 @@ private val AI_ICONS = mapOf(
     AiAssistant.CHATGPT to "🤖",
     AiAssistant.DEEPSEEK to "🔍",
     AiAssistant.QWEN to "🌐",
-    AiAssistant.PERPLEXITY to "✨"
+    AiAssistant.PERPLEXITY to "✨",
+    AiAssistant.CLAUDE to "🧠",
+    AiAssistant.GEMINI to "💎"
 )
 
 @Composable
@@ -62,18 +67,24 @@ fun ChatScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
-                .padding(top = 170.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = "AI Ассистент",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 20.dp)
             )
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Выберите ассистента",
                     fontSize = 14.sp,
@@ -105,6 +116,8 @@ fun ChatScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(20.dp))
+
             OutlinedTextField(
                 value = inputText,
                 onValueChange = { viewModel.updateInput(it) },
@@ -113,6 +126,8 @@ fun ChatScreen(
                 placeholder = { Text("Напишите что-нибудь...") },
                 minLines = 3
             )
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             Button(
                 onClick = {

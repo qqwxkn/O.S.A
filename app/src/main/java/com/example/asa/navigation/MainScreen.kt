@@ -78,7 +78,7 @@ fun MainScreen(
     val historyViewModel: HistoryViewModel = viewModel(factory = HistoryViewModelFactory())
     val smsPhoneGlobal by settingsRepository.smsPhoneFlow.collectAsState(initial = "89155399434")
 
-    // Первичная загрузка SMS из БД — один раз при старте или смене номера
+    // Загрузка SMS при старте или смене номера — каждый номер хранит свой кэш
     LaunchedEffect(smsPhoneGlobal) {
         val readGranted = android.content.pm.PackageManager.PERMISSION_GRANTED ==
             ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_SMS)
@@ -158,7 +158,7 @@ fun MainScreen(
             }
             composable("profile") {
                 val profileViewModel: ProfileViewModel = viewModel(
-                    factory = ProfileViewModelFactory(SupabaseUserRepository(), sessionManager)
+                    factory = ProfileViewModelFactory(SupabaseUserRepository(), sessionManager, settingsRepository)
                 )
                 val settingsViewModel: SettingsViewModel = viewModel(
                     factory = SettingsViewModelFactory(settingsRepository, sessionManager)
