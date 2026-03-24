@@ -31,9 +31,8 @@ class AuthViewModel(
         val hash = PasswordHasher.hash(password)
         viewModelScope.launch {
             userRepository.register(login, hash, nickname, phone)
-                .onSuccess { user ->
-                    sessionManager.saveUserId(user.id)
-                    _uiState.value = AuthUiState.Success
+                .onSuccess { _ ->
+                    _uiState.value = AuthUiState.Registered
                 }
                 .onFailure { e ->
                     _uiState.value = AuthUiState.Error(e.message ?: "Ошибка регистрации")

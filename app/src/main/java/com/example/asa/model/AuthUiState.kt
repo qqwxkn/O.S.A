@@ -5,4 +5,5 @@ sealed class AuthUiState {
     object Loading : AuthUiState()
     data class Error(val message: String) : AuthUiState()
     object Success : AuthUiState()
+    object Registered : AuthUiState() // регистрация прошла — нужно войти
 }

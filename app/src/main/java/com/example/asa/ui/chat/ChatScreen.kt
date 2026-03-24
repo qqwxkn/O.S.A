@@ -124,7 +124,13 @@ fun ChatScreen(
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Введите запрос") },
                 placeholder = { Text("Напишите что-нибудь...") },
-                minLines = 3
+                minLines = 3,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                )
             )
 
             Spacer(modifier = Modifier.height(20.dp))

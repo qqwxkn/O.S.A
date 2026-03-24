@@ -44,6 +44,13 @@ fun AuthScreen(
     LaunchedEffect(uiState) {
         when (val state = uiState) {
             is AuthUiState.Success -> onSuccess()
+            is AuthUiState.Registered -> {
+                selectedTab = 0
+                scope.launch {
+                    snackbarHostState.showSnackbar("Регистрация успешна! Войдите в аккаунт.")
+                    viewModel.resetState()
+                }
+            }
             is AuthUiState.Error -> {
                 scope.launch {
                     snackbarHostState.showSnackbar(state.message)
