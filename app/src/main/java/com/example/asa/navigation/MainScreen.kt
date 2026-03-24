@@ -1,41 +1,49 @@
 package com.example.asa.navigation
 
-import androidx.compose.foundation.layout.Box
+import android.content.IntentFilter
+import android.provider.Telephony
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
+import com.example.asa.model.AiAssistant
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.asa.receiver.SmsReceiver
 import com.example.asa.repository.DataStoreSettingsRepository
 import com.example.asa.repository.SettingsRepository
 import com.example.asa.repository.SupabaseUserRepository
 import com.example.asa.session.SessionManager
+import com.example.asa.ui.history.HistoryScreen
 import com.example.asa.ui.chat.ChatScreen
 import com.example.asa.ui.profile.ProfileScreen
 import com.example.asa.ui.settings.SecuritySheet
 import com.example.asa.ui.settings.SettingsSheet
 import com.example.asa.viewmodel.ChatViewModel
 import com.example.asa.viewmodel.ChatViewModelFactory
+import com.example.asa.viewmodel.HistoryViewModel
+import com.example.asa.viewmodel.HistoryViewModelFactory
 import com.example.asa.viewmodel.ProfileViewModel
 import com.example.asa.viewmodel.ProfileViewModelFactory
 import com.example.asa.viewmodel.SecurityViewModel
@@ -51,8 +59,8 @@ private data class BottomTab(
 
 private val tabs = listOf(
     BottomTab("chat", "Чаты", Icons.Default.Forum),
-    BottomTab("profile", "Профиль", Icons.Default.Person),
-    BottomTab("placeholder", "Скоро", Icons.Default.Star)
+    BottomTab("history", "История", Icons.Default.History),
+    BottomTab("profile", "Профиль", Icons.Default.Person)
 )
 
 @Composable
@@ -65,6 +73,32 @@ fun MainScreen(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val context = LocalContext.current
+
+    // Единый HistoryViewModel для всего экрана — чтобы ChatScreen мог переключить AI
+    val historyViewModel: HistoryViewModel = viewModel(factory = HistoryViewModelFactory())
+    val smsPhoneGlobal by settingsRepository.smsPhoneFlow.collectAsState(initial = "89155399434")
+
+    // Первичная загрузка SMS из БД — один раз при старте или смене номера
+    LaunchedEffect(smsPhoneGlobal) {
+        val readGranted = android.content.pm.PackageManager.PERMISSION_GRANTED ==
+            ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_SMS)
+        if (readGranted) {
+            historyViewModel.setPermissionGranted(true)
+            historyViewModel.loadMessages(context, smsPhoneGlobal)
+        }
+    }
+
+    // Receiver живёт на уровне MainScreen — слушает входящие SMS всегда, независимо от вкладки
+    DisposableEffect(smsPhoneGlobal) {
+        val receiver = SmsReceiver(smsPhoneGlobal) { body, date ->
+            historyViewModel.addIncomingMessage(body, date)
+        }
+        val filter = IntentFilter(Telephony.Sms.Intents.SMS_RECEIVED_ACTION).apply {
+            priority = 999
+        }
+        context.registerReceiver(receiver, filter)
+        onDispose { context.unregisterReceiver(receiver) }
+    }
 
     Scaffold(
         bottomBar = {
@@ -104,7 +138,23 @@ fun MainScreen(
                     )
                 )
                 val smsPhone by settingsRepository.smsPhoneFlow.collectAsState(initial = "89155399434")
-                ChatScreen(viewModel = chatViewModel, smsPhone = smsPhone)
+                ChatScreen(
+                    viewModel = chatViewModel,
+                    smsPhone = smsPhone,
+                    onNavigateToHistory = { ai, smsText ->
+                        historyViewModel.selectAi(ai)
+                        historyViewModel.addOutgoingMessage(smsText) // добавляем ДО навигации
+                        navController.navigate("history") {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
+            }
+            composable("history") {
+                val smsPhone by settingsRepository.smsPhoneFlow.collectAsState(initial = "89155399434")
+                HistoryScreen(viewModel = historyViewModel, smsPhone = smsPhone)
             }
             composable("profile") {
                 val profileViewModel: ProfileViewModel = viewModel(
@@ -144,16 +194,6 @@ fun MainScreen(
                     )
                 }
             }
-            composable("placeholder") {
-                PlaceholderScreen()
-            }
         }
-    }
-}
-
-@Composable
-fun PlaceholderScreen() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Скоро здесь появится что-то интересное")
     }
 }

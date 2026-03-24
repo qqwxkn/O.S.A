@@ -25,6 +25,10 @@ class ChatViewModel(
     private val _inputText = MutableStateFlow("")
     val inputText: StateFlow<String> = _inputText.asStateFlow()
 
+    // Сигнал для перехода в историю после отправки: AI + текст SMS
+    private val _navigateToHistory = MutableStateFlow<Pair<AiAssistant, String>?>(null)
+    val navigateToHistory: StateFlow<Pair<AiAssistant, String>?> = _navigateToHistory.asStateFlow()
+
     init {
         viewModelScope.launch {
             settingsRepository.defaultAiFlow.collect { ai ->
@@ -42,13 +46,19 @@ class ChatViewModel(
     }
 
     fun sendRequest(context: Context, smsPhone: String) {
-        val inputText = _inputText.value
+        val text = _inputText.value.trim()
+        if (text.isBlank()) return
         val ai = _selectedAi.value
-        val smsText = "[ ${ai.displayName} ]\n$inputText"
-        SmsLauncher.launch(context, smsPhone, smsText)
+        val smsText = "[ ${ai.displayName} ]\n$text"
+        SmsLauncher.sendDirect(context, smsPhone, smsText)
         viewModelScope.launch {
             userRepository.incrementRequestsCount(sessionManager.getUserId() ?: return@launch)
         }
         _inputText.value = ""
+        _navigateToHistory.value = Pair(ai, smsText)
+    }
+
+    fun onNavigatedToHistory() {
+        _navigateToHistory.value = null
     }
 }

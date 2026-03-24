@@ -1,27 +1,18 @@
 package com.example.asa.ui.chat
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.example.asa.model.AiAssistant
 import com.example.asa.viewmodel.ChatViewModel
 
@@ -33,10 +24,36 @@ private val AI_ICONS = mapOf(
 )
 
 @Composable
-fun ChatScreen(viewModel: ChatViewModel, smsPhone: String) {
+fun ChatScreen(
+    viewModel: ChatViewModel,
+    smsPhone: String,
+    onNavigateToHistory: (AiAssistant, String) -> Unit = { _, _ -> }
+) {
     val selectedAi by viewModel.selectedAi.collectAsState()
     val inputText by viewModel.inputText.collectAsState()
+    val navigateToHistory by viewModel.navigateToHistory.collectAsState()
     val context = LocalContext.current
+
+    var hasSmsPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasSmsPermission = granted
+    }
+
+    // Переход в историю после отправки
+    LaunchedEffect(navigateToHistory) {
+        val pair = navigateToHistory
+        if (pair != null) {
+            onNavigateToHistory(pair.first, pair.second)
+            viewModel.onNavigatedToHistory()
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -49,7 +66,6 @@ fun ChatScreen(viewModel: ChatViewModel, smsPhone: String) {
                 .padding(top = 170.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Заголовок
             Text(
                 text = "AI Ассистент",
                 fontSize = 26.sp,
@@ -57,50 +73,38 @@ fun ChatScreen(viewModel: ChatViewModel, smsPhone: String) {
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            // Секция выбора ассистента
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "Выберите ассистента",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                val assistants = AiAssistant.entries
-                // Сетка 2×2
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    assistants.chunked(2).forEach { row ->
+                    AiAssistant.entries.chunked(2).forEach { row ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             row.forEach { ai ->
-                                val icon = AI_ICONS[ai] ?: ""
-                                val label = "$icon ${ai.displayName}"
+                                val label = "${AI_ICONS[ai] ?: ""} ${ai.displayName}"
                                 if (ai == selectedAi) {
                                     Button(
                                         onClick = { viewModel.selectAi(ai) },
                                         modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text(text = label)
-                                    }
+                                    ) { Text(label) }
                                 } else {
                                     OutlinedButton(
                                         onClick = { viewModel.selectAi(ai) },
                                         modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text(text = label)
-                                    }
+                                    ) { Text(label) }
                                 }
                             }
-                            // Если нечётная строка — добавить пустой вес
-                            if (row.size < 2) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
+                            if (row.size < 2) Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
             }
 
-            // Поле ввода запроса
             OutlinedTextField(
                 value = inputText,
                 onValueChange = { viewModel.updateInput(it) },
@@ -110,13 +114,18 @@ fun ChatScreen(viewModel: ChatViewModel, smsPhone: String) {
                 minLines = 3
             )
 
-            // Кнопка отправки
             Button(
-                onClick = { viewModel.sendRequest(context, smsPhone) },
+                onClick = {
+                    if (hasSmsPermission) {
+                        viewModel.sendRequest(context, smsPhone)
+                    } else {
+                        permissionLauncher.launch(Manifest.permission.SEND_SMS)
+                    }
+                },
                 enabled = inputText.isNotBlank(),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = "Отправить")
+                Text(if (hasSmsPermission) "Отправить" else "Разрешить SMS и отправить")
             }
         }
     }
