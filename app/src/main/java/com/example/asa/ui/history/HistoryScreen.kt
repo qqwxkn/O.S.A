@@ -5,16 +5,20 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -22,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.asa.model.AiAssistant
+import com.example.asa.util.SmsLauncher
 import com.example.asa.viewmodel.HistoryViewModel
 import com.example.asa.viewmodel.SmsMessage
 import java.text.SimpleDateFormat
@@ -30,7 +35,8 @@ import java.util.*
 @Composable
 fun HistoryScreen(
     viewModel: HistoryViewModel,
-    smsPhone: String
+    smsPhone: String,
+    isOsaTheme: Boolean = false
 ) {
     val context = LocalContext.current
     val messages by viewModel.messages.collectAsState()
@@ -38,16 +44,20 @@ fun HistoryScreen(
     val selectedAi by viewModel.selectedAi.collectAsState()
     val listState = rememberLazyListState()
 
+    var inputText by remember { mutableStateOf("") }
+
+    val hasSmsPermission = ContextCompat.checkSelfPermission(
+        context, Manifest.permission.SEND_SMS
+    ) == PackageManager.PERMISSION_GRANTED
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val readGranted = permissions[Manifest.permission.READ_SMS] == true
         viewModel.setPermissionGranted(readGranted)
-        if (readGranted) viewModel.loadMessages(context, smsPhone) // первичная загрузка после выдачи разрешения
+        if (readGranted) viewModel.loadMessages(context, smsPhone)
     }
 
-    // Проверяем разрешения при входе — запрашиваем READ_SMS + RECEIVE_SMS вместе
-    // loadMessages НЕ вызываем здесь — он вызывается из MainScreen один раз при старте
     LaunchedEffect(Unit) {
         val readGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
         val receiveGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
@@ -57,7 +67,6 @@ fun HistoryScreen(
         }
     }
 
-    // Скроллим вниз при новых сообщениях
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
@@ -116,27 +125,73 @@ fun HistoryScreen(
                     Text("Разрешить доступ к SMS")
                 }
             }
-        } else if (messages.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("💬", fontSize = 48.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "Нет сообщений с ${selectedAi.displayName}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
+        } else {
+            // Список сообщений занимает всё свободное место
+            Box(modifier = Modifier.weight(1f)) {
+                if (messages.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("💬", fontSize = 48.sp)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Нет сообщений с ${selectedAi.displayName}",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(messages, key = { "${it.id}_${it.isIncoming}" }) { msg ->
+                            MessageBubble(msg, isOsaTheme)
+                        }
+                    }
                 }
             }
-        } else {
-            LazyColumn(
-                state = listState,
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+
+            // Поле ввода снизу
+            HorizontalDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .imePadding()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(messages, key = { "${it.id}_${it.isIncoming}" }) { msg ->
-                    MessageBubble(msg)
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Написать ${selectedAi.displayName}...") },
+                    maxLines = 4,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    )
+                )
+                IconButton(
+                    onClick = {
+                        val text = inputText.trim()
+                        if (text.isBlank()) return@IconButton
+                        val smsText = "[ ${selectedAi.displayName} ]\n$text"
+                        SmsLauncher.sendDirect(context, smsPhone, smsText)
+                        viewModel.addOutgoingMessage(smsText)
+                        inputText = ""
+                    },
+                    enabled = inputText.isNotBlank() && hasSmsPermission
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Send,
+                        contentDescription = "Отправить",
+                        tint = if (inputText.isNotBlank()) MaterialTheme.colorScheme.primary
+                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    )
                 }
             }
         }
@@ -144,19 +199,24 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun MessageBubble(msg: SmsMessage) {
+private fun MessageBubble(msg: SmsMessage, isOsaTheme: Boolean = false) {
     val dateFormat = remember { SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()) }
     val dateStr = dateFormat.format(Date(msg.date))
 
     val alignment = if (msg.isIncoming) Alignment.Start else Alignment.End
-    val bubbleColor = if (msg.isIncoming)
-        MaterialTheme.colorScheme.surfaceVariant
-    else
-        MaterialTheme.colorScheme.primaryContainer
-    val textColor = if (msg.isIncoming)
-        MaterialTheme.colorScheme.onSurfaceVariant
-    else
-        MaterialTheme.colorScheme.onPrimaryContainer
+
+    val bubbleColor = when {
+        isOsaTheme && !msg.isIncoming -> MaterialTheme.colorScheme.surface
+        isOsaTheme && msg.isIncoming -> MaterialTheme.colorScheme.surfaceVariant
+        !msg.isIncoming -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val textColor = when {
+        isOsaTheme && !msg.isIncoming -> Color.White
+        isOsaTheme && msg.isIncoming -> MaterialTheme.colorScheme.onSurfaceVariant
+        !msg.isIncoming -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
     val label = if (msg.isIncoming) "AI" else "Вы"
 
     Column(
@@ -173,6 +233,13 @@ private fun MessageBubble(msg: SmsMessage) {
             modifier = Modifier
                 .widthIn(max = 300.dp)
                 .background(bubbleColor, RoundedCornerShape(12.dp))
+                .then(
+                    if (isOsaTheme) Modifier.border(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                        RoundedCornerShape(12.dp)
+                    ) else Modifier
+                )
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Column {

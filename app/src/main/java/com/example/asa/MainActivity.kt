@@ -28,9 +28,11 @@ class MainActivity : ComponentActivity() {
                 AppTheme.DARK -> true
                 AppTheme.LIGHT -> false
                 AppTheme.SYSTEM -> systemDark
+                AppTheme.YELLOW -> false
             }
+            val yellowTheme = theme == AppTheme.YELLOW
 
-            ASATheme(darkTheme = darkTheme) {
+            ASATheme(darkTheme = darkTheme, yellowTheme = yellowTheme) {
                 AppNavigation(
                     sessionManager = sessionManager,
                     settingsRepository = settingsRepository

@@ -13,10 +13,12 @@ interface SettingsRepository {
     val defaultAiFlow: Flow<AiAssistant>
     val smsPhoneFlow: Flow<String>
     val avatarUriFlow: Flow<String?>
+    val availablePhonesFlow: Flow<List<Pair<String, String>>> // phone to label
     suspend fun setTheme(theme: AppTheme)
     suspend fun setDefaultAi(ai: AiAssistant)
     suspend fun setSmsPhone(phone: String)
     suspend fun setAvatarUri(uri: String)
+    suspend fun setAvailablePhones(phones: List<Pair<String, String>>)
 }
 
 class DataStoreSettingsRepository(private val context: Context) : SettingsRepository {
@@ -26,8 +28,10 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         private val KEY_DEFAULT_AI = stringPreferencesKey("default_ai")
         private val KEY_SMS_PHONE = stringPreferencesKey("sms_phone")
         private val KEY_AVATAR_URI = stringPreferencesKey("avatar_uri")
+        private val KEY_PHONES_CACHE = stringPreferencesKey("phones_cache")
 
         private const val DEFAULT_PHONE = "89155399434"
+        private const val DEFAULT_PHONES_CACHE = "89155399434|8 915 539 94 34"
     }
 
     override val themeFlow: Flow<AppTheme> = context.dataStore.data.map { prefs ->
@@ -56,6 +60,15 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         prefs[KEY_AVATAR_URI]?.takeIf { it.isNotEmpty() }
     }
 
+    // Список номеров из кэша — формат "phone|label;phone|label"
+    override val availablePhonesFlow: Flow<List<Pair<String, String>>> = context.dataStore.data.map { prefs ->
+        val raw = prefs[KEY_PHONES_CACHE] ?: DEFAULT_PHONES_CACHE
+        raw.split(";").mapNotNull { entry ->
+            val parts = entry.split("|")
+            if (parts.size == 2) Pair(parts[0], parts[1]) else null
+        }
+    }
+
     override suspend fun setTheme(theme: AppTheme) {
         context.dataStore.edit { it[KEY_THEME] = theme.name }
     }
@@ -70,5 +83,10 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
 
     override suspend fun setAvatarUri(uri: String) {
         context.dataStore.edit { it[KEY_AVATAR_URI] = uri }
+    }
+
+    override suspend fun setAvailablePhones(phones: List<Pair<String, String>>) {
+        val encoded = phones.joinToString(";") { "${it.first}|${it.second}" }
+        context.dataStore.edit { it[KEY_PHONES_CACHE] = encoded }
     }
 }

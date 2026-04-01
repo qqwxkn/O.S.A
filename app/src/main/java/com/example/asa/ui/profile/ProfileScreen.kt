@@ -84,7 +84,16 @@ fun ProfileScreen(viewModel: ProfileViewModel, onOpenSettings: () -> Unit) {
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = onOpenSettings) {
+            FloatingActionButton(
+                onClick = onOpenSettings,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.border(
+                    width = 1.5.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+                )
+            ) {
                 Icon(imageVector = Icons.Default.Settings, contentDescription = "Настройки")
             }
         }
@@ -112,7 +121,7 @@ fun ProfileScreen(viewModel: ProfileViewModel, onOpenSettings: () -> Unit) {
                     )
                     .padding(2.dp)
                     .background(
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.surface,
                         shape = RoundedCornerShape(16.dp)
                     )
                     .border(
@@ -141,7 +150,7 @@ fun ProfileScreen(viewModel: ProfileViewModel, onOpenSettings: () -> Unit) {
                             modifier = Modifier
                                 .size(96.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { pickerLauncher.launch("image/*") },
                             contentAlignment = Alignment.Center
                         ) {
@@ -149,7 +158,7 @@ fun ProfileScreen(viewModel: ProfileViewModel, onOpenSettings: () -> Unit) {
                                 imageVector = Icons.Default.Person,
                                 contentDescription = "Аватарка",
                                 modifier = Modifier.size(56.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -158,19 +167,19 @@ fun ProfileScreen(viewModel: ProfileViewModel, onOpenSettings: () -> Unit) {
                         text = user?.nickname ?: "—",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Text(
                         text = user?.createdAt?.let { formatDate(it) } ?: "—",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Black.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
 
                     Text(
                         text = "Запросов отправлено: ${user?.requestsCount ?: 0}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             } // Box

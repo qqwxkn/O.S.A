@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -17,12 +18,25 @@ private val LightColorScheme = lightColorScheme(
     tertiary = Pink40
 )
 
+private val YellowColorScheme = darkColorScheme(
+    primary = OsaYellow,
+    onPrimary = OsaOnYellow,
+    primaryContainer = OsaYellowDim,
+    onPrimaryContainer = Color.White,
+    outline = OsaYellow
+)
+
 @Composable
 fun ASATheme(
     darkTheme: Boolean = false,
+    yellowTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val colorScheme = when {
+        yellowTheme -> YellowColorScheme
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
+    }
 
     MaterialTheme(
         colorScheme = colorScheme,

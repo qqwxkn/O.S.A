@@ -8,19 +8,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.example.asa.model.AiAssistant
 import com.example.asa.model.AppTheme
 import com.example.asa.viewmodel.SettingsViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,12 +47,24 @@ fun SettingsSheet(
     val theme by viewModel.theme.collectAsState()
     val defaultAi by viewModel.defaultAi.collectAsState()
     val smsPhone by viewModel.smsPhone.collectAsState()
+    val availablePhones by viewModel.availablePhones.collectAsState()
+    val refreshStatus by viewModel.refreshStatus.collectAsState()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(refreshStatus) {
+        val msg = refreshStatus ?: return@LaunchedEffect
+        scope.launch { snackbarHostState.showSnackbar(msg) }
+        viewModel.clearRefreshStatus()
+    }
 
     var themeExpanded by remember { mutableStateOf(false) }
     var aiExpanded by remember { mutableStateOf(false) }
     var smsExpanded by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
+        SnackbarHost(hostState = snackbarHostState)
         Column(modifier = Modifier.padding(16.dp)) {
 
             // Секция "Тема"
@@ -70,7 +89,8 @@ fun SettingsSheet(
                 listOf(
                     AppTheme.DARK to "Тёмная",
                     AppTheme.LIGHT to "Светлая",
-                    AppTheme.SYSTEM to "Системная"
+                    AppTheme.SYSTEM to "Системная",
+                    AppTheme.YELLOW to "Чёрно-жёлтая (OSA)"
                 ).forEach { (value, label) ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -129,22 +149,30 @@ fun SettingsSheet(
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f)
                 )
+                IconButton(onClick = { viewModel.refreshPhones() }) {
+                    Icon(imageVector = Icons.Default.Refresh, contentDescription = "Обновить номера")
+                }
                 Icon(
                     imageVector = if (smsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                     contentDescription = null
                 )
             }
             if (smsExpanded) {
-                listOf(
-                    "89155399434" to "8 915 539 94 34",
-                    "89003578107" to "8 900 357 81 07"
-                ).forEach { (value, label) ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        RadioButton(selected = smsPhone == value, onClick = { viewModel.setSmsPhone(value) })
-                        Text(text = label)
+                if (availablePhones.isEmpty()) {
+                    Text(
+                        text = "Загрузка номеров...",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = androidx.compose.ui.Modifier.padding(start = 16.dp, bottom = 8.dp)
+                    )
+                } else {
+                    availablePhones.forEach { (phone, label) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            RadioButton(selected = smsPhone == phone, onClick = { viewModel.setSmsPhone(phone) })
+                            Text(text = label)
+                        }
                     }
                 }
             }

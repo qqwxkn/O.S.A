@@ -76,21 +76,26 @@ fun MainScreen(
 
     // Единый HistoryViewModel для всего экрана — чтобы ChatScreen мог переключить AI
     val historyViewModel: HistoryViewModel = viewModel(factory = HistoryViewModelFactory())
-    val smsPhoneGlobal by settingsRepository.smsPhoneFlow.collectAsState(initial = "89155399434")
+    // Единый SettingsViewModel — чтобы smsPhone не сбрасывался при переходах
+    val settingsViewModel: SettingsViewModel = viewModel(
+        factory = SettingsViewModelFactory(settingsRepository, sessionManager, context.applicationContext as android.app.Application)
+    )
+    val smsPhoneGlobal by settingsViewModel.smsPhone.collectAsState()
+    val phone = smsPhoneGlobal
 
     // Загрузка SMS при старте или смене номера — каждый номер хранит свой кэш
-    LaunchedEffect(smsPhoneGlobal) {
+    LaunchedEffect(phone) {
         val readGranted = android.content.pm.PackageManager.PERMISSION_GRANTED ==
             ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_SMS)
         if (readGranted) {
             historyViewModel.setPermissionGranted(true)
-            historyViewModel.loadMessages(context, smsPhoneGlobal)
+            historyViewModel.loadMessages(context, phone)
         }
     }
 
     // Receiver живёт на уровне MainScreen — слушает входящие SMS всегда, независимо от вкладки
-    DisposableEffect(smsPhoneGlobal) {
-        val receiver = SmsReceiver(smsPhoneGlobal) { body, date ->
+    DisposableEffect(phone) {
+        val receiver = SmsReceiver(phone) { body, date ->
             historyViewModel.addIncomingMessage(body, date)
         }
         val filter = IntentFilter(Telephony.Sms.Intents.SMS_RECEIVED_ACTION).apply {
@@ -137,13 +142,14 @@ fun MainScreen(
                         sessionManager
                     )
                 )
-                val smsPhone by settingsRepository.smsPhoneFlow.collectAsState(initial = "89155399434")
+                val currentTheme by settingsRepository.themeFlow.collectAsState(initial = com.example.asa.model.AppTheme.SYSTEM)
                 ChatScreen(
                     viewModel = chatViewModel,
-                    smsPhone = smsPhone,
+                    smsPhone = phone,
+                    isOsaTheme = currentTheme == com.example.asa.model.AppTheme.YELLOW,
                     onNavigateToHistory = { ai, smsText ->
                         historyViewModel.selectAi(ai)
-                        historyViewModel.addOutgoingMessage(smsText) // добавляем ДО навигации
+                        historyViewModel.addOutgoingMessage(smsText)
                         navController.navigate("history") {
                             popUpTo(navController.graph.startDestinationId) { saveState = true }
                             launchSingleTop = true
@@ -153,15 +159,16 @@ fun MainScreen(
                 )
             }
             composable("history") {
-                val smsPhone by settingsRepository.smsPhoneFlow.collectAsState(initial = "89155399434")
-                HistoryScreen(viewModel = historyViewModel, smsPhone = smsPhone)
+                val currentTheme by settingsRepository.themeFlow.collectAsState(initial = com.example.asa.model.AppTheme.SYSTEM)
+                HistoryScreen(
+                    viewModel = historyViewModel,
+                    smsPhone = phone,
+                    isOsaTheme = currentTheme == com.example.asa.model.AppTheme.YELLOW
+                )
             }
             composable("profile") {
                 val profileViewModel: ProfileViewModel = viewModel(
                     factory = ProfileViewModelFactory(SupabaseUserRepository(), sessionManager, settingsRepository)
-                )
-                val settingsViewModel: SettingsViewModel = viewModel(
-                    factory = SettingsViewModelFactory(settingsRepository, sessionManager)
                 )
                 val securityViewModel: SecurityViewModel = viewModel(
                     factory = SecurityViewModelFactory(SupabaseUserRepository(), sessionManager)
