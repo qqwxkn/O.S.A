@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -160,6 +161,7 @@ fun HistoryScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .imePadding()
+                    .navigationBarsPadding()
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -242,8 +244,11 @@ private fun MessageBubble(msg: SmsMessage, isOsaTheme: Boolean = false) {
                 )
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
+            val displayText = msg.body
+                .replace(Regex("^\\[\\s*[^\\]]+\\s*\\]\\s*\n?"), "")
+                .trim()
             Column {
-                Text(text = msg.body, color = textColor, style = MaterialTheme.typography.bodyMedium)
+                Text(text = displayText, color = textColor, style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = dateStr,

@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -22,8 +23,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.example.asa.model.AiAssistant
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -78,7 +89,11 @@ fun MainScreen(
     val historyViewModel: HistoryViewModel = viewModel(factory = HistoryViewModelFactory())
     // Единый SettingsViewModel — чтобы smsPhone не сбрасывался при переходах
     val settingsViewModel: SettingsViewModel = viewModel(
-        factory = SettingsViewModelFactory(settingsRepository, sessionManager, context.applicationContext as android.app.Application)
+        factory = SettingsViewModelFactory(
+            settingsRepository,
+            sessionManager,
+            context.applicationContext as android.app.Application
+        )
     )
     val smsPhoneGlobal by settingsViewModel.smsPhone.collectAsState()
     val phone = smsPhoneGlobal
@@ -86,7 +101,7 @@ fun MainScreen(
     // Загрузка SMS при старте или смене номера — каждый номер хранит свой кэш
     LaunchedEffect(phone) {
         val readGranted = android.content.pm.PackageManager.PERMISSION_GRANTED ==
-            ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_SMS)
+                ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_SMS)
         if (readGranted) {
             historyViewModel.setPermissionGranted(true)
             historyViewModel.loadMessages(context, phone)
@@ -106,101 +121,128 @@ fun MainScreen(
     }
 
     Scaffold(
-        bottomBar = {
-            NavigationBar {
-                tabs.forEach { tab ->
-                    NavigationBarItem(
-                        selected = currentRoute == tab.route,
-                        onClick = {
-                            if (currentRoute != tab.route) {
-                                navController.navigate(tab.route) {
-                                    popUpTo(navController.graph.startDestinationId) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            }
-                        },
-                        icon = { Icon(imageVector = tab.icon, contentDescription = tab.label) },
-                        label = { Text(tab.label) }
-                    )
-                }
-            }
-        }
+        bottomBar = {}
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = "chat",
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            composable("chat") {
-                val chatViewModel: ChatViewModel = viewModel(
-                    factory = ChatViewModelFactory(
-                        DataStoreSettingsRepository(context),
-                        SupabaseUserRepository(),
-                        sessionManager
+        Box(modifier = Modifier.fillMaxSize()) {
+            NavHost(
+                navController = navController,
+                startDestination = "chat",
+                modifier = Modifier.padding(innerPadding).padding(bottom = 80.dp)
+            ) {
+                composable("chat") {
+                    val chatViewModel: ChatViewModel = viewModel(
+                        factory = ChatViewModelFactory(
+                            DataStoreSettingsRepository(context),
+                            SupabaseUserRepository(),
+                            sessionManager
+                        )
                     )
-                )
-                val currentTheme by settingsRepository.themeFlow.collectAsState(initial = com.example.asa.model.AppTheme.SYSTEM)
-                ChatScreen(
-                    viewModel = chatViewModel,
-                    smsPhone = phone,
-                    isOsaTheme = currentTheme == com.example.asa.model.AppTheme.YELLOW,
-                    onNavigateToHistory = { ai, smsText ->
-                        historyViewModel.selectAi(ai)
-                        historyViewModel.addOutgoingMessage(smsText)
-                        navController.navigate("history") {
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
+                    val currentTheme by settingsRepository.themeFlow.collectAsState(initial = com.example.asa.model.AppTheme.SYSTEM)
+                    ChatScreen(
+                        viewModel = chatViewModel,
+                        smsPhone = phone,
+                        isOsaTheme = currentTheme == com.example.asa.model.AppTheme.YELLOW,
+                        onNavigateToHistory = { ai, smsText ->
+                            historyViewModel.selectAi(ai)
+                            historyViewModel.addOutgoingMessage(smsText)
+                            navController.navigate("history") {
+                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
-                    }
-                )
-            }
-            composable("history") {
-                val currentTheme by settingsRepository.themeFlow.collectAsState(initial = com.example.asa.model.AppTheme.SYSTEM)
-                HistoryScreen(
-                    viewModel = historyViewModel,
-                    smsPhone = phone,
-                    isOsaTheme = currentTheme == com.example.asa.model.AppTheme.YELLOW
-                )
-            }
-            composable("profile") {
-                val profileViewModel: ProfileViewModel = viewModel(
-                    factory = ProfileViewModelFactory(SupabaseUserRepository(), sessionManager, settingsRepository)
-                )
-                val securityViewModel: SecurityViewModel = viewModel(
-                    factory = SecurityViewModelFactory(SupabaseUserRepository(), sessionManager)
-                )
-
-                var showSettingsSheet by remember { mutableStateOf(false) }
-                var showSecuritySheet by remember { mutableStateOf(false) }
-
-                ProfileScreen(
-                    viewModel = profileViewModel,
-                    onOpenSettings = { showSettingsSheet = true }
-                )
-
-                if (showSettingsSheet) {
-                    SettingsSheet(
-                        viewModel = settingsViewModel,
-                        onOpenSecurity = {
-                            showSecuritySheet = true
-                            showSettingsSheet = false
-                        },
-                        onLogout = onLogout,
-                        onDismiss = { showSettingsSheet = false }
                     )
                 }
-
-                if (showSecuritySheet) {
-                    SecuritySheet(
-                        viewModel = securityViewModel,
-                        onDismiss = { showSecuritySheet = false }
+                composable("history") {
+                    val currentTheme by settingsRepository.themeFlow.collectAsState(initial = com.example.asa.model.AppTheme.SYSTEM)
+                    HistoryScreen(
+                        viewModel = historyViewModel,
+                        smsPhone = phone,
+                        isOsaTheme = currentTheme == com.example.asa.model.AppTheme.YELLOW
                     )
+                }
+                composable("profile") {
+                    val profileViewModel: ProfileViewModel = viewModel(
+                        factory = ProfileViewModelFactory(
+                            SupabaseUserRepository(),
+                            sessionManager,
+                            settingsRepository
+                        )
+                    )
+                    val securityViewModel: SecurityViewModel = viewModel(
+                        factory = SecurityViewModelFactory(SupabaseUserRepository(), sessionManager)
+                    )
+
+                    var showSettingsSheet by remember { mutableStateOf(false) }
+                    var showSecuritySheet by remember { mutableStateOf(false) }
+
+                    ProfileScreen(
+                        viewModel = profileViewModel,
+                        onOpenSettings = { showSettingsSheet = true }
+                    )
+
+                    if (showSettingsSheet) {
+                        SettingsSheet(
+                            viewModel = settingsViewModel,
+                            onOpenSecurity = {
+                                showSecuritySheet = true
+                                showSettingsSheet = false
+                            },
+                            onLogout = onLogout,
+                            onDismiss = { showSettingsSheet = false }
+                        )
+                    }
+
+                    if (showSecuritySheet) {
+                        SecuritySheet(
+                            viewModel = securityViewModel,
+                            onDismiss = { showSecuritySheet = false }
+                        )
+                    }
+                } // конец composable("profile")
+            } // конец NavHost
+
+            // Плавающая навигация с закруглёнными углами
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 10.dp)
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                        shape = RoundedCornerShape(28.dp)
+                    )
+                    .clip(RoundedCornerShape(28.dp)),
+                shape = RoundedCornerShape(28.dp),
+                tonalElevation = 6.dp,
+                shadowElevation = 12.dp
+            ) {
+                NavigationBar(
+                    modifier = Modifier.clip(RoundedCornerShape(28.dp)),
+                    tonalElevation = 0.dp
+                ) {
+                    tabs.forEach { tab ->
+                        NavigationBarItem(
+                            selected = currentRoute == tab.route,
+                            onClick = {
+                                if (currentRoute != tab.route) {
+                                    navController.navigate(tab.route) {
+                                        popUpTo(navController.graph.startDestinationId) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            },
+                            icon = { Icon(imageVector = tab.icon, contentDescription = tab.label) },
+                            label = { Text(tab.label) }
+                        )
+                    }
                 }
             }
         }
     }
 }
+

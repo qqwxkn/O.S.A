@@ -37,9 +37,9 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
     override val themeFlow: Flow<AppTheme> = context.dataStore.data.map { prefs ->
         val value = prefs[KEY_THEME]
         if (value != null) {
-            try { AppTheme.valueOf(value) } catch (_: IllegalArgumentException) { AppTheme.SYSTEM }
+            try { AppTheme.valueOf(value) } catch (_: IllegalArgumentException) { AppTheme.YELLOW }
         } else {
-            AppTheme.SYSTEM
+            AppTheme.YELLOW
         }
     }
 

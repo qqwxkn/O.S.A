@@ -1,13 +1,16 @@
 package com.example.asa.ui.auth
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -15,6 +18,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
 import com.example.asa.model.AuthUiState
 import com.example.asa.util.normalizePhoneInput
 import com.example.asa.viewmodel.AuthViewModel
@@ -28,6 +34,20 @@ fun AuthScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    // Запрашиваем все необходимые разрешения при первом открытии
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { /* результат не важен — просто запросили */ }
+
+    LaunchedEffect(Unit) {
+        permissionLauncher.launch(arrayOf(
+            Manifest.permission.SEND_SMS,
+            Manifest.permission.READ_SMS,
+            Manifest.permission.RECEIVE_SMS,
+            Manifest.permission.READ_MEDIA_IMAGES
+        ))
+    }
 
     var selectedTab by remember { mutableIntStateOf(0) }
 
@@ -79,7 +99,7 @@ fun AuthScreen(
             Text(text = "💬", fontSize = 56.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "ASA Chat",
+                text = "OSA Chat",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -193,7 +213,15 @@ private fun LoginForm(
     Button(
         onClick = onLogin,
         enabled = !isLoading,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(50.dp)),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.Black,
+            contentColor = Color.White,
+            disabledContainerColor = Color.Black.copy(alpha = 0.5f),
+            disabledContentColor = Color.White.copy(alpha = 0.5f)
+        )
     ) {
         if (isLoading) {
             CircularProgressIndicator(
@@ -271,7 +299,15 @@ private fun RegisterForm(
     Button(
         onClick = onRegister,
         enabled = !isLoading,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(50.dp)),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.Black,
+            contentColor = Color.White,
+            disabledContainerColor = Color.Black.copy(alpha = 0.5f),
+            disabledContentColor = Color.White.copy(alpha = 0.5f)
+        )
     ) {
         if (isLoading) {
             CircularProgressIndicator(

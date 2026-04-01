@@ -90,7 +90,7 @@ fun SettingsSheet(
                     AppTheme.DARK to "Тёмная",
                     AppTheme.LIGHT to "Светлая",
                     AppTheme.SYSTEM to "Системная",
-                    AppTheme.YELLOW to "Чёрно-жёлтая (OSA)"
+                    AppTheme.YELLOW to "OSA"
                 ).forEach { (value, label) ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,

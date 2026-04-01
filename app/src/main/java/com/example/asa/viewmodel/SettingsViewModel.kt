@@ -25,7 +25,7 @@ class SettingsViewModel(
     private val smsPhoneRepository = SmsPhoneRepository()
 
     val theme: StateFlow<AppTheme> = settingsRepository.themeFlow
-        .stateIn(viewModelScope, SharingStarted.Eagerly, AppTheme.SYSTEM)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, AppTheme.YELLOW)
 
     val defaultAi: StateFlow<AiAssistant> = settingsRepository.defaultAiFlow
         .stateIn(viewModelScope, SharingStarted.Eagerly, AiAssistant.CHATGPT)

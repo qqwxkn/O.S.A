@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
         val settingsRepository = DataStoreSettingsRepository(this)
 
         setContent {
-            val theme by settingsRepository.themeFlow.collectAsState(initial = AppTheme.SYSTEM)
+            val theme by settingsRepository.themeFlow.collectAsState(initial = AppTheme.YELLOW)
             val systemDark = isSystemInDarkTheme()
             val darkTheme = when (theme) {
                 AppTheme.DARK -> true
