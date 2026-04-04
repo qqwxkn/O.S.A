@@ -3,6 +3,7 @@ package com.example.asa.ui.profile
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,7 +32,13 @@ import java.io.File
 fun ProfileScreen(viewModel: ProfileViewModel, onOpenSettings: () -> Unit) {
     val user by viewModel.user.collectAsState()
     val avatarUri by viewModel.avatarUri.collectAsState()
+    val avatarBitmap by viewModel.avatarBitmap.collectAsState()
     val context = LocalContext.current
+
+    // Перезагружаем данные при каждом входе на вкладку
+    LaunchedEffect(Unit) {
+        viewModel.loadUser()
+    }
 
     var showAvatarDialog by remember { mutableStateOf(false) }
 
@@ -136,7 +144,16 @@ fun ProfileScreen(viewModel: ProfileViewModel, onOpenSettings: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (avatarUri != null) {
+                    if (avatarBitmap != null) {
+                        Image(
+                            bitmap = avatarBitmap!!.asImageBitmap(),
+                            contentDescription = "Аватарка",
+                            modifier = Modifier
+                                .size(96.dp)
+                                .clip(CircleShape)
+                                .clickable { showAvatarDialog = true }
+                        )
+                    } else if (avatarUri != null) {
                         AsyncImage(
                             model = avatarUri,
                             contentDescription = "Аватарка",
@@ -171,15 +188,9 @@ fun ProfileScreen(viewModel: ProfileViewModel, onOpenSettings: () -> Unit) {
                     )
 
                     Text(
-                        text = user?.createdAt?.let { formatDate(it) } ?: "—",
+                        text = "Дата регистрации: ${user?.createdAt?.let { formatDate(it) } ?: "—"}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-
-                    Text(
-                        text = "Запросов отправлено: ${user?.requestsCount ?: 0}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             } // Box

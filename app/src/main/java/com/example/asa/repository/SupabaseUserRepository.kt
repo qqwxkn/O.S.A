@@ -99,7 +99,6 @@ class SupabaseUserRepository : UserRepository {
         vkId: String?
     ): Result<Unit> {
         return try {
-            // Строим patch-объект только из непустых полей
             val patch = buildMap<String, String> {
                 login?.let { put("login", it) }
                 nickname?.let { put("nickname", it) }
@@ -119,19 +118,34 @@ class SupabaseUserRepository : UserRepository {
         }
     }
 
-    override suspend fun incrementRequestsCount(id: String): Result<Unit> = try {
-        val current = table.select {
-            filter { eq("id", id) }
-        }.decodeSingle<UserDto>()
-
-        table.update(mapOf("requests_count" to current.requestsCount + 1)) {
+    suspend fun updateAvatarUrl(id: String, avatarUrl: String?): Result<Unit> = try {
+        table.update(mapOf("avatar_url" to (avatarUrl ?: ""))) {
             filter { eq("id", id) }
         }
         Result.success(Unit)
-    } catch (e: RestException) {
-        Result.failure(mapRestException(e))
     } catch (e: Exception) {
-        Result.failure(Exception("Ошибка сети. Проверьте подключение", e))
+        Result.failure(Exception("Ошибка сохранения аватарки", e))
+    }
+
+    override suspend fun incrementRequestsCount(id: String): Result<Unit> {
+        if (id.isBlank()) return Result.failure(Exception("User ID is blank"))
+        return try {
+            val current = table.select {
+                filter { eq("id", id) }
+            }.decodeSingle<UserDto>()
+            val newCount = current.requestsCount + 1
+            table.update(mapOf("requests_count" to newCount)) {
+                filter { eq("id", id) }
+            }
+            android.util.Log.d("OSA_DEBUG", "incrementRequestsCount: $id -> $newCount")
+            Result.success(Unit)
+        } catch (e: RestException) {
+            android.util.Log.e("OSA_DEBUG", "incrementRequestsCount RestException: ${e.message}")
+            Result.failure(mapRestException(e))
+        } catch (e: Exception) {
+            android.util.Log.e("OSA_DEBUG", "incrementRequestsCount Exception: ${e.message}")
+            Result.failure(Exception("Ошибка обновления счётчика", e))
+        }
     }
 
     private fun mapRestException(e: RestException): Exception {

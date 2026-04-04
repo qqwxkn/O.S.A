@@ -17,13 +17,17 @@ class SmsReceiver(
 
         val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
         Log.d("SmsReceiver", "messages count=${messages?.size}, watching=$smsPhone")
-        messages?.forEach { sms ->
-            val from = sms.originatingAddress ?: return@forEach
+        if (messages.isNullOrEmpty()) return
+
+        // Группируем части по отправителю и склеиваем в одно сообщение
+        val grouped = messages.groupBy { it.originatingAddress ?: "" }
+        grouped.forEach { (from, parts) ->
             Log.d("SmsReceiver", "from=$from, isSame=${isSamePhone(from, smsPhone)}")
             if (isSamePhone(from, smsPhone)) {
-                val body = sms.messageBody ?: return@forEach
-                val date = sms.timestampMillis
-                Log.d("SmsReceiver", "MATCH! body=${body.take(30)}")
+                // Склеиваем все PDU-части в одно тело
+                val body = parts.joinToString("") { it.messageBody ?: "" }
+                val date = parts.first().timestampMillis
+                Log.d("SmsReceiver", "MATCH! body=${body.take(30)}, parts=${parts.size}")
                 onMessageReceived(body, date)
             }
         }

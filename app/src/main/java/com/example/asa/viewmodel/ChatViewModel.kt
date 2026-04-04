@@ -52,7 +52,7 @@ class ChatViewModel(
         val smsText = "[ ${ai.displayName} ]\n$text"
         SmsLauncher.sendDirect(context, smsPhone, smsText)
         viewModelScope.launch {
-            userRepository.incrementRequestsCount(sessionManager.getUserId() ?: return@launch)
+            // счётчик временно отключён
         }
         _inputText.value = ""
         _navigateToHistory.value = Pair(ai, smsText)

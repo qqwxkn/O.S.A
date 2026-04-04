@@ -30,8 +30,8 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         private val KEY_AVATAR_URI = stringPreferencesKey("avatar_uri")
         private val KEY_PHONES_CACHE = stringPreferencesKey("phones_cache")
 
-        private const val DEFAULT_PHONE = "89155399434"
-        private const val DEFAULT_PHONES_CACHE = "89155399434|8 915 539 94 34"
+        private const val DEFAULT_PHONE = ""
+        private const val DEFAULT_PHONES_CACHE = ""
     }
 
     override val themeFlow: Flow<AppTheme> = context.dataStore.data.map { prefs ->

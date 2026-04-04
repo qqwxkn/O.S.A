@@ -172,28 +172,46 @@ fun HistoryScreen(
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("Написать ${selectedAi.displayName}...") },
                     maxLines = 4,
+                    shape = RoundedCornerShape(24.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                     )
                 )
-                IconButton(
-                    onClick = {
-                        val text = inputText.trim()
-                        if (text.isBlank()) return@IconButton
-                        val smsText = "[ ${selectedAi.displayName} ]\n$text"
-                        SmsLauncher.sendDirect(context, smsPhone, smsText)
-                        viewModel.addOutgoingMessage(smsText)
-                        inputText = ""
-                    },
-                    enabled = inputText.isNotBlank() && hasSmsPermission
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .border(
+                            width = 1.5.dp,
+                            color = if (inputText.isNotBlank() && hasSmsPermission)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                            shape = androidx.compose.foundation.shape.CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Send,
-                        contentDescription = "Отправить",
-                        tint = if (inputText.isNotBlank()) MaterialTheme.colorScheme.primary
-                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                    )
+                    IconButton(
+                        onClick = {
+                            val text = inputText.trim()
+                            if (text.isBlank()) return@IconButton
+                            val smsText = "[ ${selectedAi.displayName} ]\n$text"
+                            SmsLauncher.sendDirect(context, smsPhone, smsText)
+                            viewModel.addOutgoingMessage(smsText)
+                            inputText = ""
+                        },
+                        enabled = inputText.isNotBlank() && hasSmsPermission,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Send,
+                            contentDescription = "Отправить",
+                            tint = if (inputText.isNotBlank() && hasSmsPermission)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        )
+                    }
                 }
             }
         }
@@ -233,7 +251,7 @@ private fun MessageBubble(msg: SmsMessage, isOsaTheme: Boolean = false) {
         )
         Box(
             modifier = Modifier
-                .widthIn(max = 300.dp)
+                .fillMaxWidth(0.85f)
                 .background(bubbleColor, RoundedCornerShape(12.dp))
                 .then(
                     if (isOsaTheme) Modifier.border(

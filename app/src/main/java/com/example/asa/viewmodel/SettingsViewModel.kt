@@ -50,7 +50,10 @@ class SettingsViewModel(
             smsPhoneRepository.fetchPhones().onSuccess { phones ->
                 if (phones.isNotEmpty()) {
                     settingsRepository.setAvailablePhones(phones)
-                    // НЕ меняем текущий выбранный номер автоматически
+                    // Если номер ещё не выбран — ставим первый из БД
+                    if (smsPhone.value.isBlank()) {
+                        settingsRepository.setSmsPhone(phones.first().first)
+                    }
                 }
             }
         }
@@ -67,6 +70,12 @@ class SettingsViewModel(
                 .onSuccess { phones ->
                     if (phones.isNotEmpty()) {
                         settingsRepository.setAvailablePhones(phones)
+                        // Если текущий номер больше не в списке или пустой — ставим первый из БД
+                        val currentPhone = smsPhone.value
+                        val stillValid = phones.any { it.first == currentPhone }
+                        if (!stillValid || currentPhone.isBlank()) {
+                            settingsRepository.setSmsPhone(phones.first().first)
+                        }
                         _refreshStatus.value = "Номера обновлены"
                     } else {
                         _refreshStatus.value = "Нет доступных номеров"

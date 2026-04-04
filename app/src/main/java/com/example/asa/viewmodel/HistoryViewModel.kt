@@ -15,7 +15,8 @@ data class SmsMessage(
     val id: Long,
     val body: String,
     val date: Long,
-    val isIncoming: Boolean
+    val isIncoming: Boolean,
+    val threadId: Long = -1L
 )
 
 class HistoryViewModel : ViewModel() {
@@ -59,36 +60,54 @@ class HistoryViewModel : ViewModel() {
             val selection = phoneVariants.joinToString(" OR ") { "${Telephony.Sms.ADDRESS} = ?" }
             val selectionArgs = phoneVariants.toTypedArray()
 
-            // Входящие
+            // Входящие — читаем thread_id для склейки частей
             context.contentResolver.query(
                 Telephony.Sms.Inbox.CONTENT_URI,
-                arrayOf(Telephony.Sms._ID, Telephony.Sms.BODY, Telephony.Sms.DATE),
+                arrayOf(Telephony.Sms._ID, Telephony.Sms.BODY, Telephony.Sms.DATE, Telephony.Sms.THREAD_ID),
                 selection, selectionArgs,
-                "${Telephony.Sms.DATE} DESC"
+                "${Telephony.Sms.DATE} ASC"
             )?.use { cursor ->
+                val idIdx = cursor.getColumnIndex(Telephony.Sms._ID)
+                val bodyIdx = cursor.getColumnIndex(Telephony.Sms.BODY)
+                val dateIdx = cursor.getColumnIndex(Telephony.Sms.DATE)
+                val threadIdx = cursor.getColumnIndex(Telephony.Sms.THREAD_ID)
                 while (cursor.moveToNext()) {
-                    result.add(SmsMessage(cursor.getLong(0), cursor.getString(1) ?: "", cursor.getLong(2), true))
+                    result.add(SmsMessage(
+                        id = cursor.getLong(idIdx),
+                        body = cursor.getString(bodyIdx) ?: "",
+                        date = cursor.getLong(dateIdx),
+                        isIncoming = true,
+                        threadId = cursor.getLong(threadIdx)
+                    ))
                 }
             }
 
             // Исходящие
             context.contentResolver.query(
                 Telephony.Sms.Sent.CONTENT_URI,
-                arrayOf(Telephony.Sms._ID, Telephony.Sms.BODY, Telephony.Sms.DATE),
+                arrayOf(Telephony.Sms._ID, Telephony.Sms.BODY, Telephony.Sms.DATE, Telephony.Sms.THREAD_ID),
                 selection, selectionArgs,
-                "${Telephony.Sms.DATE} DESC"
+                "${Telephony.Sms.DATE} ASC"
             )?.use { cursor ->
+                val idIdx = cursor.getColumnIndex(Telephony.Sms._ID)
+                val bodyIdx = cursor.getColumnIndex(Telephony.Sms.BODY)
+                val dateIdx = cursor.getColumnIndex(Telephony.Sms.DATE)
+                val threadIdx = cursor.getColumnIndex(Telephony.Sms.THREAD_ID)
                 while (cursor.moveToNext()) {
-                    result.add(SmsMessage(cursor.getLong(0), cursor.getString(1) ?: "", cursor.getLong(2), false))
+                    result.add(SmsMessage(
+                        id = cursor.getLong(idIdx),
+                        body = cursor.getString(bodyIdx) ?: "",
+                        date = cursor.getLong(dateIdx),
+                        isIncoming = false,
+                        threadId = cursor.getLong(threadIdx)
+                    ))
                 }
             }
 
             val local = _localByPhone[smsPhone] ?: emptyList()
             val fromDb = result.sortedBy { it.date }
-            // Мёрджим локальные с БД, убираем дубли по тексту+направлению
-            val merged = (local + fromDb)
-                .distinctBy { "${it.isIncoming}_${it.body.take(50)}" }
-                .sortedBy { it.date }
+            val localFiltered = local.filter { it.id < 0 }
+            val merged = (localFiltered + fromDb).sortedBy { it.date }
 
             kotlinx.coroutines.withContext(Dispatchers.Main) {
                 _messagesByPhone[smsPhone] = merged

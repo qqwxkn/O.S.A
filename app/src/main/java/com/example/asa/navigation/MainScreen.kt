@@ -166,7 +166,8 @@ fun MainScreen(
                         factory = ProfileViewModelFactory(
                             SupabaseUserRepository(),
                             sessionManager,
-                            settingsRepository
+                            settingsRepository,
+                            context
                         )
                     )
                     val securityViewModel: SecurityViewModel = viewModel(
