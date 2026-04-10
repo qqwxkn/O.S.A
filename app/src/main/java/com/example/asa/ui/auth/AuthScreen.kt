@@ -1,5 +1,6 @@
 package com.example.asa.ui.auth
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -18,9 +19,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.window.Dialog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.Manifest
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 import com.example.asa.model.AuthUiState
 import com.example.asa.util.normalizePhoneInput
 import com.example.asa.viewmodel.AuthViewModel
@@ -34,19 +38,83 @@ fun AuthScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     // Запрашиваем все необходимые разрешения при первом открытии
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { /* результат не важен — просто запросили */ }
 
+    val prefs = remember { context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE) }
+    val permRationaleShown = remember { prefs.getBoolean("perm_rationale_shown", false) }
+    var showPermRationale by remember { mutableStateOf(!permRationaleShown) }
+
+    if (showPermRationale) {
+        Dialog(onDismissRequest = {}) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.5.dp,
+                        color = Color(0xFFCCA000),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .background(Color(0xFF0D0D0D), RoundedCornerShape(16.dp))
+                    .padding(24.dp)
+            ) {
+                Column {
+                    Text(
+                        text = "Разрешения приложения",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Приложению необходим доступ к SMS для:\n\n" +
+                            "• Отправки запросов к AI-ассистентам через SMS\n" +
+                            "• Получения ответов от AI-ассистентов\n" +
+                            "• Отображения истории переписки\n\n" +
+                            "Также запрашивается доступ к фото для установки аватара профиля.\n\n" +
+                            "Без этих разрешений основные функции приложения будут недоступны.",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Button(
+                        onClick = {
+                            showPermRationale = false
+                            prefs.edit().putBoolean("perm_rationale_shown", true).apply()
+                            permissionLauncher.launch(arrayOf(
+                                Manifest.permission.SEND_SMS,
+                                Manifest.permission.READ_SMS,
+                                Manifest.permission.RECEIVE_SMS,
+                                Manifest.permission.READ_MEDIA_IMAGES
+                            ))
+                        },
+                        modifier = Modifier.align(Alignment.End),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFCCA000),
+                            contentColor = Color(0xFF0D0D0D)
+                        )
+                    ) {
+                        Text("Далее", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        return
+    }
+
     LaunchedEffect(Unit) {
-        permissionLauncher.launch(arrayOf(
-            Manifest.permission.SEND_SMS,
-            Manifest.permission.READ_SMS,
-            Manifest.permission.RECEIVE_SMS,
-            Manifest.permission.READ_MEDIA_IMAGES
-        ))
+        if (permRationaleShown) {
+            permissionLauncher.launch(arrayOf(
+                Manifest.permission.SEND_SMS,
+                Manifest.permission.READ_SMS,
+                Manifest.permission.RECEIVE_SMS,
+                Manifest.permission.READ_MEDIA_IMAGES
+            ))
+        }
     }
 
     var selectedTab by remember { mutableIntStateOf(0) }

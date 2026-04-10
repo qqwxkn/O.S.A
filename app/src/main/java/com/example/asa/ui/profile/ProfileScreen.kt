@@ -1,5 +1,6 @@
 package com.example.asa.ui.profile
 
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,11 +26,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.asa.viewmodel.ProfileViewModel
-import com.yalantis.ucrop.UCrop
 import java.io.File
 
 @Composable
-fun ProfileScreen(viewModel: ProfileViewModel, onOpenSettings: () -> Unit) {
+fun ProfileScreen(viewModel: ProfileViewModel, onOpenSettings: () -> Unit, onShowCropper: () -> Unit = {}, onHideCropper: () -> Unit = {}) {
     val user by viewModel.user.collectAsState()
     val avatarUri by viewModel.avatarUri.collectAsState()
     val avatarBitmap by viewModel.avatarBitmap.collectAsState()
@@ -41,31 +41,32 @@ fun ProfileScreen(viewModel: ProfileViewModel, onOpenSettings: () -> Unit) {
     }
 
     var showAvatarDialog by remember { mutableStateOf(false) }
+    var cropUri by remember { mutableStateOf<Uri?>(null) }
 
-    val cropLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val croppedUri = UCrop.getOutput(result.data ?: return@rememberLauncherForActivityResult)
-        croppedUri?.let { viewModel.updateAvatar(it) }
+    // Если открыт кроппер — показываем его поверх всего
+    cropUri?.let { uri ->
+        AvatarCropScreen(
+            imageUri = uri,
+            onCropped = { bitmap ->
+                cropUri = null
+                onHideCropper()
+                viewModel.updateAvatarBitmap(bitmap)
+            },
+            onCancel = {
+                cropUri = null
+                onHideCropper()
+            }
+        )
+        return
     }
 
     val pickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri ?: return@rememberLauncherForActivityResult
-        val destFile = File(context.cacheDir, "avatar_crop_${System.currentTimeMillis()}.jpg")
-        val destUri = Uri.fromFile(destFile)
-        val options = UCrop.Options().apply {
-            setCircleDimmedLayer(true)
-            setShowCropGrid(false)
-            setShowCropFrame(false)
+        uri?.let {
+            cropUri = it
+            onShowCropper()
         }
-        val cropIntent = UCrop.of(uri, destUri)
-            .withAspectRatio(1f, 1f)
-            .withMaxResultSize(512, 512)
-            .withOptions(options)
-            .getIntent(context)
-        cropLauncher.launch(cropIntent)
     }
 
     if (showAvatarDialog) {

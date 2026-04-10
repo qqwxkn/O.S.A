@@ -12,7 +12,7 @@ private data class AppConfigDto(
 )
 
 object AppVersion {
-    const val CURRENT = "1.2"
+    const val CURRENT = "1.5"
 }
 
 class AppConfigRepository {

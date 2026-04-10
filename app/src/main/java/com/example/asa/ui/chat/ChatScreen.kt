@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -72,16 +73,14 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding()
-                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
-                .padding(vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .padding(top = 24.dp, bottom = 16.dp)
         ) {
-            // Весь контент в одном блоке с обводкой
+            // Верхняя часть — скроллируемый выбор ассистента
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
                     .border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
@@ -143,7 +142,23 @@ fun ChatScreen(
                         }
                     }
                 }
+            }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            val imeHeight = WindowInsets.ime.getBottom(LocalDensity.current)
+            // Нижняя часть — поле ввода и кнопка, поднимаются с клавиатурой
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { viewModel.updateInput(it) },

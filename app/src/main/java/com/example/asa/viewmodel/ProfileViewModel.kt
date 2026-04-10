@@ -76,6 +76,20 @@ class ProfileViewModel(
         }
     }
 
+    fun updateAvatarBitmap(bitmap: Bitmap) {
+        viewModelScope.launch {
+            val userId = sessionManager.getUserId() ?: return@launch
+            val stream = java.io.ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+            val bytes = stream.toByteArray()
+            val base64 = "data:image/jpeg;base64," + android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+            supabaseRepo?.updateAvatarUrl(userId, base64)
+            settingsRepository.setAvatarUri(base64)
+            _avatarBitmap.value = bitmap
+            _avatarUri.value = null
+        }
+    }
+
     fun updateAvatar(uri: Uri) {
         _avatarUri.value = uri
         viewModelScope.launch {

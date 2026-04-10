@@ -5,8 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.toArgb
+import androidx.core.view.WindowInsetsControllerCompat
 import com.example.asa.model.AppTheme
 import com.example.asa.navigation.AppNavigation
 import com.example.asa.repository.DataStoreSettingsRepository
@@ -33,6 +37,17 @@ class MainActivity : ComponentActivity() {
             val yellowTheme = theme == AppTheme.YELLOW
 
             ASATheme(darkTheme = darkTheme, yellowTheme = yellowTheme) {
+                val navBarColor = MaterialTheme.colorScheme.background.toArgb()
+                SideEffect {
+                    val controller = WindowInsetsControllerCompat(window, window.decorView)
+                    controller.isAppearanceLightStatusBars = !darkTheme && !yellowTheme
+                    controller.isAppearanceLightNavigationBars = !darkTheme && !yellowTheme
+                    @Suppress("DEPRECATION")
+                    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                        window.statusBarColor = navBarColor
+                        window.navigationBarColor = navBarColor
+                    }
+                }
                 AppNavigation(
                     sessionManager = sessionManager,
                     settingsRepository = settingsRepository

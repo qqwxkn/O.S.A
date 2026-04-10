@@ -10,6 +10,7 @@ import com.example.asa.repository.SettingsRepository
 import com.example.asa.repository.SupabaseUserRepository
 import com.example.asa.session.SessionManager
 import com.example.asa.ui.auth.AuthScreen
+import com.example.asa.ui.splash.SplashScreen
 import com.example.asa.ui.update.UpdateRequiredScreen
 import com.example.asa.viewmodel.AuthViewModel
 import com.example.asa.viewmodel.AuthViewModelFactory
@@ -21,14 +22,16 @@ fun AppNavigation(
     settingsRepository: SettingsRepository
 ) {
     val navController = rememberNavController()
-    val startDestination = if (sessionManager.isLoggedIn()) "main" else "auth"
+    val startDestination = if (sessionManager.isLoggedIn()) "main" else "splash"
 
     // Проверка версии
     var versionChecked by remember { mutableStateOf(false) }
     var versionSupported by remember { mutableStateOf(true) }
+    var retryKey by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(retryKey) {
+        versionChecked = false
         scope.launch {
             val repo = AppConfigRepository()
             repo.getMinVersion().onSuccess { minVersion ->
@@ -42,11 +45,18 @@ fun AppNavigation(
     if (!versionChecked) return // ждём проверки (мгновенно при офлайне)
 
     if (!versionSupported) {
-        UpdateRequiredScreen()
+        UpdateRequiredScreen(onRetry = { retryKey++ })
         return
     }
 
     NavHost(navController = navController, startDestination = startDestination) {
+        composable("splash") {
+            SplashScreen(onFinished = {
+                navController.navigate("auth") {
+                    popUpTo("splash") { inclusive = true }
+                }
+            })
+        }
         composable("auth") {
             val authViewModel: AuthViewModel = viewModel(
                 factory = AuthViewModelFactory(

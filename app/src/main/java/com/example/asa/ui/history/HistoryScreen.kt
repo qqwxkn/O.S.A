@@ -6,15 +6,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +38,7 @@ import java.util.*
 fun HistoryScreen(
     viewModel: HistoryViewModel,
     smsPhone: String,
+    onRefreshPhone: () -> Unit = {},
     isOsaTheme: Boolean = false
 ) {
     val context = LocalContext.current
@@ -44,7 +46,6 @@ fun HistoryScreen(
     val hasPermission by viewModel.hasPermission.collectAsState()
     val selectedAi by viewModel.selectedAi.collectAsState()
     val listState = rememberLazyListState()
-
     var inputText by remember { mutableStateOf("") }
 
     val hasSmsPermission = ContextCompat.checkSelfPermission(
@@ -69,100 +70,61 @@ fun HistoryScreen(
     }
 
     LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
-        }
+        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "История",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        Text(
-            text = "SMS с номера $smsPhone",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-        )
+    Column(modifier = Modifier.fillMaxSize().imePadding().padding(bottom = 8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("История", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onRefreshPhone() }.padding(4.dp)) {
+                Icon(imageVector = Icons.Default.Refresh, contentDescription = "Проверить номер")
+                Text("Проверить номер", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
+            }
+        }
+        Text("SMS с номера $smsPhone", style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(AiAssistant.entries) { ai ->
-                FilterChip(
-                    selected = selectedAi == ai,
-                    onClick = { viewModel.selectAi(ai) },
-                    label = { Text(ai.displayName) }
-                )
+                FilterChip(selected = selectedAi == ai, onClick = { viewModel.selectAi(ai) }, label = { Text(ai.displayName) })
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         if (!hasPermission) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
+            Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Text("📩", fontSize = 48.sp, modifier = Modifier.padding(bottom = 16.dp))
-                Text(
-                    text = "Для отображения истории нужен доступ к SMS",
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(bottom = 24.dp, start = 32.dp, end = 32.dp)
-                )
-                Button(onClick = {
-                    permissionLauncher.launch(arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS))
-                }) {
+                Text("Для отображения истории нужен доступ к SMS", textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 24.dp, start = 32.dp, end = 32.dp))
+                Button(onClick = { permissionLauncher.launch(arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS)) }) {
                     Text("Разрешить доступ к SMS")
                 }
             }
         } else {
-            // Список сообщений занимает всё свободное место
             Box(modifier = Modifier.weight(1f)) {
                 if (messages.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("💬", fontSize = 48.sp)
                             Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "Нет сообщений с ${selectedAi.displayName}",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
+                            Text("Нет сообщений с ${selectedAi.displayName}", style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                         }
                     }
                 } else {
-                    LazyColumn(
-                        state = listState,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(messages, key = { "${it.id}_${it.isIncoming}" }) { msg ->
-                            MessageBubble(msg, isOsaTheme)
-                        }
+                    LazyColumn(state = listState, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(messages, key = { "${it.id}_${it.isIncoming}" }) { msg -> MessageBubble(msg, isOsaTheme) }
                     }
                 }
             }
 
-            // Поле ввода снизу
             HorizontalDivider()
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .imePadding()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -179,16 +141,10 @@ fun HistoryScreen(
                     )
                 )
                 Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .border(
-                            width = 1.5.dp,
-                            color = if (inputText.isNotBlank() && hasSmsPermission)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                            shape = androidx.compose.foundation.shape.CircleShape
-                        ),
+                    modifier = Modifier.size(48.dp).border(1.5.dp,
+                        if (inputText.isNotBlank() && hasSmsPermission) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                        androidx.compose.foundation.shape.CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     IconButton(
@@ -203,14 +159,9 @@ fun HistoryScreen(
                         enabled = inputText.isNotBlank() && hasSmsPermission,
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Send,
-                            contentDescription = "Отправить",
-                            tint = if (inputText.isNotBlank() && hasSmsPermission)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                        )
+                        Icon(imageVector = Icons.AutoMirrored.Filled.Send, contentDescription = "Отправить",
+                            tint = if (inputText.isNotBlank() && hasSmsPermission) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
                     }
                 }
             }
@@ -222,9 +173,7 @@ fun HistoryScreen(
 private fun MessageBubble(msg: SmsMessage, isOsaTheme: Boolean = false) {
     val dateFormat = remember { SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()) }
     val dateStr = dateFormat.format(Date(msg.date))
-
     val alignment = if (msg.isIncoming) Alignment.Start else Alignment.End
-
     val bubbleColor = when {
         isOsaTheme && !msg.isIncoming -> MaterialTheme.colorScheme.surface
         isOsaTheme && msg.isIncoming -> MaterialTheme.colorScheme.surfaceVariant
@@ -239,41 +188,23 @@ private fun MessageBubble(msg: SmsMessage, isOsaTheme: Boolean = false) {
     }
     val label = if (msg.isIncoming) "AI" else "Вы"
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = alignment
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-        )
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = alignment) {
+        Text(text = label, style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.85f)
+                .then(if (msg.isIncoming) Modifier.fillMaxWidth(0.85f)
+                    else Modifier.fillMaxWidth(0.75f).wrapContentWidth(align = Alignment.End, unbounded = true))
                 .background(bubbleColor, RoundedCornerShape(12.dp))
-                .then(
-                    if (isOsaTheme) Modifier.border(
-                        1.dp,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                        RoundedCornerShape(12.dp)
-                    ) else Modifier
-                )
+                .then(if (isOsaTheme) Modifier.border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f), RoundedCornerShape(12.dp)) else Modifier)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            val displayText = msg.body
-                .replace(Regex("^\\[\\s*[^\\]]+\\s*\\]\\s*\n?"), "")
-                .trim()
+            val displayText = msg.body.replace(Regex("^\\[\\s*[^\\]]+\\s*\\]\\s*\n?"), "").trim()
             Column {
                 Text(text = displayText, color = textColor, style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = dateStr,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = textColor.copy(alpha = 0.6f),
-                    modifier = Modifier.align(Alignment.End)
-                )
+                Text(text = dateStr, style = MaterialTheme.typography.labelSmall,
+                    color = textColor.copy(alpha = 0.6f), modifier = Modifier.align(Alignment.End))
             }
         }
     }

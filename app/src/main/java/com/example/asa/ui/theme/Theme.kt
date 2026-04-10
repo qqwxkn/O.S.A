@@ -23,7 +23,13 @@ private val YellowColorScheme = darkColorScheme(
     onPrimary = OsaOnYellow,
     primaryContainer = OsaYellowDim,
     onPrimaryContainer = Color.White,
-    outline = OsaYellow
+    outline = OsaYellow,
+    background = OsaBlack,
+    onBackground = Color.White,
+    surface = OsaSurface,
+    onSurface = Color.White,
+    surfaceVariant = OsaSurface2,
+    onSurfaceVariant = Color.White
 )
 
 @Composable

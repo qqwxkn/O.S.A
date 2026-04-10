@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.ASA" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.ASA" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/osa_black</item>
+        <item name="android:statusBarColor">@color/osa_black</item>
+        <item name="android:navigationBarColor">@color/osa_black</item>
+    </style>
 </resources>

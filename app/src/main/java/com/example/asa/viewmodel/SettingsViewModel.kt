@@ -7,7 +7,7 @@ import com.example.asa.model.AppTheme
 import com.example.asa.repository.SettingsRepository
 import com.example.asa.repository.SmsPhoneRepository
 import com.example.asa.session.SessionManager
-import com.example.asa.util.  isNetworkAvailable
+import com.example.asa.util.isNetworkAvailable
 import android.app.Application
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -50,10 +50,8 @@ class SettingsViewModel(
             smsPhoneRepository.fetchPhones().onSuccess { phones ->
                 if (phones.isNotEmpty()) {
                     settingsRepository.setAvailablePhones(phones)
-                    // Если номер ещё не выбран — ставим первый из БД
-                    if (smsPhone.value.isBlank()) {
-                        settingsRepository.setSmsPhone(phones.first().first)
-                    }
+                    // Всегда обновляем на первый активный номер из БД
+                    settingsRepository.setSmsPhone(phones.first().first)
                 }
             }
         }
@@ -70,12 +68,8 @@ class SettingsViewModel(
                 .onSuccess { phones ->
                     if (phones.isNotEmpty()) {
                         settingsRepository.setAvailablePhones(phones)
-                        // Если текущий номер больше не в списке или пустой — ставим первый из БД
-                        val currentPhone = smsPhone.value
-                        val stillValid = phones.any { it.first == currentPhone }
-                        if (!stillValid || currentPhone.isBlank()) {
-                            settingsRepository.setSmsPhone(phones.first().first)
-                        }
+                        // Всегда обновляем на первый активный номер из БД
+                        settingsRepository.setSmsPhone(phones.first().first)
                         _refreshStatus.value = "Номера обновлены"
                     } else {
                         _refreshStatus.value = "Нет доступных номеров"
