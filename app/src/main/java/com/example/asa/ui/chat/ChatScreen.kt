@@ -1,18 +1,36 @@
-package com.example.asa.ui.chat
+﻿package com.example.asa.ui.chat
 
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -52,11 +70,8 @@ fun ChatScreen(
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasSmsPermission = granted
-    }
+    ) { granted -> hasSmsPermission = granted }
 
-    // Переход в историю после отправки
     LaunchedEffect(navigateToHistory) {
         val pair = navigateToHistory
         if (pair != null) {
@@ -73,81 +88,10 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(top = 24.dp, bottom = 16.dp)
         ) {
-            // Верхняя часть — скроллируемый выбор ассистента
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = "AI Ассистент",
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "Выберите ассистента",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AiAssistant.entries.chunked(2).forEach { row ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                row.forEach { ai ->
-                                    val label = "${AI_ICONS[ai] ?: ""} ${ai.displayName}"
-                                    if (ai == selectedAi) {
-                                        if (isOsaTheme) {
-                                            Button(
-                                                onClick = { viewModel.selectAi(ai) },
-                                                modifier = Modifier.weight(1f),
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = Color.White,
-                                                    contentColor = Color.Black
-                                                )
-                                            ) { Text(label) }
-                                        } else {
-                                            Button(
-                                                onClick = { viewModel.selectAi(ai) },
-                                                modifier = Modifier.weight(1f)
-                                            ) { Text(label) }
-                                        }
-                                    } else {
-                                        OutlinedButton(
-                                            onClick = { viewModel.selectAi(ai) },
-                                            modifier = Modifier.weight(1f),
-                                            colors = if (isOsaTheme) ButtonDefaults.outlinedButtonColors(
-                                                contentColor = MaterialTheme.colorScheme.onBackground
-                                            ) else ButtonDefaults.outlinedButtonColors()
-                                        ) { Text(label) }
-                                    }
-                                }
-                                if (row.size < 2) Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            val imeHeight = WindowInsets.ime.getBottom(LocalDensity.current)
-            // Нижняя часть — поле ввода и кнопка, поднимаются с клавиатурой
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -159,13 +103,66 @@ fun ChatScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                Text(
+                    text = "AI ссистент",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Text(
+                    text = "ыберите ассистента",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AiAssistant.entries.chunked(2).forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            row.forEach { ai ->
+                                val label = "${AI_ICONS[ai] ?: ""} ${ai.displayName}"
+                                if (ai == selectedAi) {
+                                    if (isOsaTheme) {
+                                        Button(
+                                            onClick = { viewModel.selectAi(ai) },
+                                            modifier = Modifier.weight(1f),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color.White,
+                                                contentColor = Color.Black
+                                            )
+                                        ) { Text(label) }
+                                    } else {
+                                        Button(
+                                            onClick = { viewModel.selectAi(ai) },
+                                            modifier = Modifier.weight(1f)
+                                        ) { Text(label) }
+                                    }
+                                } else {
+                                    OutlinedButton(
+                                        onClick = { viewModel.selectAi(ai) },
+                                        modifier = Modifier.weight(1f),
+                                        colors = if (isOsaTheme) ButtonDefaults.outlinedButtonColors(
+                                            contentColor = MaterialTheme.colorScheme.onBackground
+                                        ) else ButtonDefaults.outlinedButtonColors()
+                                    ) { Text(label) }
+                                }
+                            }
+                            if (row.size < 2) Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { viewModel.updateInput(it) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Введите запрос") },
-                    placeholder = { Text("Напишите что-нибудь...") },
-                    minLines = 3,
+                    label = { Text("ведите запрос") },
+                    placeholder = { Text("апишите что-нибудь...") },
+                    minLines = 4,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
@@ -185,7 +182,7 @@ fun ChatScreen(
                     enabled = inputText.isNotBlank(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(if (hasSmsPermission) "Отправить" else "Разрешить SMS и отправить")
+                    Text(if (hasSmsPermission) "тправить" else "азрешить SMS и отправить")
                 }
             }
         }

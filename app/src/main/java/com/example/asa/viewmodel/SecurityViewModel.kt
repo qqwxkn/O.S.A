@@ -42,6 +42,10 @@ class SecurityViewModel(
         }
     }
 
+    fun reloadUser() {
+        loadCurrentUser()
+    }
+
     fun saveChanges(login: String, nickname: String, password: String, vkId: String) {
         if (login.isBlank() || nickname.isBlank()) {
             _uiState.value = SecurityUiState.Error("Поле не может быть пустым")

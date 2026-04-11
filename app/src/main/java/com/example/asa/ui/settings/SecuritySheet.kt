@@ -58,24 +58,26 @@ fun SecuritySheet(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    // Перезагружаем данные при каждом открытии
+    LaunchedEffect(Unit) {
+        viewModel.reloadUser()
+    }
+
     var login by remember { mutableStateOf("") }
     var nickname by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var vkId by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var initialized by remember { mutableStateOf(false) }
     var passwordIsPlaceholder by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentUser) {
-        if (!initialized && currentUser != null) {
-            login = currentUser!!.login
-            nickname = currentUser!!.nickname
-            vkId = currentUser!!.vkId ?: ""
-            if (currentUser!!.hasPassword) {
-                password = "••••••••"
-                passwordIsPlaceholder = true
-            }
-            initialized = true
+        val user = currentUser ?: return@LaunchedEffect
+        login = user.login
+        nickname = user.nickname
+        vkId = user.vkId ?: ""
+        if (user.hasPassword && password.isEmpty()) {
+            password = "••••••••"
+            passwordIsPlaceholder = true
         }
     }
 

@@ -30,6 +30,10 @@ class HistoryViewModel : ViewModel() {
     private val _messages = MutableStateFlow<List<SmsMessage>>(emptyList())
     val messages: StateFlow<List<SmsMessage>> = _messages.asStateFlow()
 
+    // Все сообщения без фильтра по AI — для списка чатов
+    private val _allMessages = MutableStateFlow<List<SmsMessage>>(emptyList())
+    val allMessages: StateFlow<List<SmsMessage>> = _allMessages.asStateFlow()
+
     private val _hasPermission = MutableStateFlow(false)
     val hasPermission: StateFlow<Boolean> = _hasPermission.asStateFlow()
 
@@ -111,7 +115,7 @@ class HistoryViewModel : ViewModel() {
 
             kotlinx.coroutines.withContext(Dispatchers.Main) {
                 _messagesByPhone[smsPhone] = merged
-                // Показываем только если этот номер всё ещё активен
+                _allMessages.value = merged
                 if (currentPhone == smsPhone) applyFilter()
             }
         }
@@ -128,17 +132,22 @@ class HistoryViewModel : ViewModel() {
         _localByPhone.getOrPut(phone) { mutableListOf() }.add(msg)
         val current = (_messagesByPhone[phone] ?: emptyList()) + msg
         _messagesByPhone[phone] = current.sortedBy { it.date }
-        if (currentPhone == phone) applyFilter()
+        if (currentPhone == phone) {
+            _allMessages.value = _messagesByPhone[phone] ?: emptyList()
+            applyFilter()
+        }
     }
 
-    // Добавляет входящее — привязано к текущему номеру
     fun addIncomingMessage(body: String, date: Long = System.currentTimeMillis()) {
         viewModelScope.launch(Dispatchers.Main) {
             val phone = currentPhone
             val msg = SmsMessage(id = date, body = body, date = date, isIncoming = true)
             val current = (_messagesByPhone[phone] ?: emptyList()) + msg
             _messagesByPhone[phone] = current.sortedBy { it.date }
-            if (currentPhone == phone) applyFilter()
+            if (currentPhone == phone) {
+                _allMessages.value = _messagesByPhone[phone] ?: emptyList()
+                applyFilter()
+            }
         }
     }
 

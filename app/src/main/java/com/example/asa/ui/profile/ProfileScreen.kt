@@ -92,20 +92,7 @@ fun ProfileScreen(viewModel: ProfileViewModel, onOpenSettings: () -> Unit, onSho
     }
 
     Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onOpenSettings,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.border(
-                    width = 1.5.dp,
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
-                )
-            ) {
-                Icon(imageVector = Icons.Default.Settings, contentDescription = "Настройки")
-            }
-        }
+        floatingActionButton = {}
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -116,7 +103,7 @@ fun ProfileScreen(viewModel: ProfileViewModel, onOpenSettings: () -> Unit, onSho
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(top = 90.dp, start = 16.dp, end = 16.dp, bottom = 16.dp)
                     .border(
                         width = 4.dp,
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
